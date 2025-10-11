@@ -307,19 +307,30 @@ def run_automation(config):
 
         cantiere = sheet_scarico[map_cfg['cella_cantiere_scarico_ore']].value
 
-        for r in range(param_cfg['riga_inizio'], param_cfg['riga_fine'] + 1):
-            cella_stato_id = f"{param_cfg['colonna_stato']}{r}"
-            stato_raw = sheet_parametri[cella_stato_id].value
+        # Dynamic task finding: iterate through the status column to find the task to be completed.
+        col_stato = sheet_parametri[param_cfg['colonna_stato']]
+        for cella_stato in col_stato:
+            if cella_stato.row < param_cfg['riga_inizio']:
+                continue # Skip rows before the configured starting row
 
+            stato_raw = cella_stato.value
             stato_pulito = str(stato_raw).strip().upper() if stato_raw is not None else ""
             stato_da_cercare_pulito = param_cfg['stato_da_cercare'].strip().upper()
 
             if stato_pulito == stato_da_cercare_pulito:
+                r = cella_stato.row
                 print(f"  --> TASK TROVATO ALLA RIGA {r}!")
+
+                # Get the start and end rows from the identified task row
                 r_inizio = sheet_parametri[f"{param_cfg['colonna_riga_inizio']}{r}"].value
                 r_fine = sheet_parametri[f"{param_cfg['colonna_riga_fine']}{r}"].value
                 data_raw = sheet_parametri[f"{param_cfg['colonna_data_rapporto']}{r}"].value
                 data_rapporto = data_raw.strftime('%d/%m/%Y') if isinstance(data_raw, datetime) else str(data_raw)
+
+                # Validate the extracted row numbers
+                if not all(isinstance(val, int) for val in [r_inizio, r_fine]):
+                    print(f"  ATTENZIONE: Riga Inizio/Fine non valide alla riga {r}. Salto.")
+                    continue
 
                 dati_buffer = []
                 for r_dati in range(r_inizio, r_fine + 1):
@@ -335,7 +346,7 @@ def run_automation(config):
                         'dati_buffer': dati_buffer
                     }
                     print(f"  Trovato task valido (riga {r}), bufferizzate {len(dati_buffer)} righe.")
-                    break
+                    break # Exit after finding the first valid task
         wb_leggi.close()
     except Exception as e:
         print(f"ERRORE CRITICO FASE 1: {e}"); traceback.print_exc()
@@ -363,7 +374,7 @@ def run_automation(config):
         # Ciclo sui dati
         righe_processate_blocco = 0
         for i, riga_obj in enumerate(task_da_eseguire['dati_buffer']):
-            y_target = timing_cfg['y_iniziale_remoto'] + (righe_processate_blocco * timing_cfg['incremento_y_remoto'])
+            y_target = gui_cfg['y_iniziale_remoto'] + (righe_processate_blocco * gui_cfg['incremento_y_remoto'])
             print(f"Processando riga {i+1}/{len(task_da_eseguire['dati_buffer'])}...", end='\r'); sys.stdout.flush()
 
             for col_lettera, target_x in colonne_config:
@@ -384,9 +395,9 @@ def run_automation(config):
                     pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
 
             righe_processate_blocco += 1
-            if righe_processate_blocco >= timing_cfg['max_righe_per_blocco_tab']:
+            if righe_processate_blocco >= gui_cfg['max_righe_per_blocco_tab']:
                 print("\n  Raggiunto limite blocco, premo Tab...")
-                for _ in range(timing_cfg['pressioni_tasto_tab']): pyautogui.press('tab', interval=timing_cfg['intervallo_pressioni_tab'])
+                for _ in range(gui_cfg['pressioni_tasto_tab']): pyautogui.press('tab', interval=gui_cfg['intervallo_pressioni_tab'])
                 righe_processate_blocco = 0
                 time.sleep(timing_cfg['pausa_dopo_blocco_tab'])
         print("\n--- FINE AZIONI GUI ---")

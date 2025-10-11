@@ -114,7 +114,7 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
         return False
     try:
         pytesseract.pytesseract.tesseract_cmd = config['generali']['path_tesseract_cmd']
-        time.sleep(config['procedura_odc']['pausa_attesa_popup'])
+        time.sleep(config['coordinate']['odc']['pausa_attesa_popup'])
         screenshot = pyautogui.screenshot(region=regione_screenshot)
         screenshot.save(f"debug_popup_{nome_popup_log}.png")
         testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
@@ -135,12 +135,13 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
 
 def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa):
     print("\n--- INIZIO PROCEDURA REGISTRAZIONE ODC ---")
-    odc_cfg = config['procedura_odc']
+    odc_cfg = config['coordinate']['odc']
+    gui_cfg = config['coordinate']['gui']
     try:
         pyautogui.click(odc_cfg['coordinate_popup_tasto_no']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_barra_preferiti']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_commesse_variante']); time.sleep(1.5)
-        pyautogui.click(config['automazione_gui']['coordinate_apertura_nuovo_foglio']); time.sleep(1.0)
+        pyautogui.click(gui_cfg['coordinate_apertura_nuovo_foglio']); time.sleep(1.0)
 
         pyautogui.click(odc_cfg['coordinate_casella_commessa'])
         pyautogui.write(str(valore_odc_fallito), interval=0.05)
@@ -182,7 +183,7 @@ def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_com
         pyautogui.click(odc_cfg['coordinate_apri_elenco_deposito']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_casella_deposito']); time.sleep(0.5)
 
-        pyautogui.click(config['automazione_gui']['coordinate_salvataggio_foglio']); time.sleep(2.0)
+        pyautogui.click(gui_cfg['coordinate_salvataggio_foglio']); time.sleep(2.0)
         pyautogui.click(odc_cfg['coordinate_chiudi_rapportino_commessa']); time.sleep(1.5)
 
         print("--- PROCEDURA REGISTRAZIONE ODC COMPLETATA ---")
@@ -194,7 +195,7 @@ def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_com
 
 def controlla_e_gestisci_popup_odc(config, valore_odc_fallito, dati_riga_completa):
     if not OCR_AVAILABLE: return False
-    odc_cfg = config['procedura_odc']
+    odc_cfg = config['coordinate']['odc']
     try:
         pytesseract.pytesseract.tesseract_cmd = config['generali']['path_tesseract_cmd']
         time.sleep(odc_cfg['pausa_attesa_popup'])

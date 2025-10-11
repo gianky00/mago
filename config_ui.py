@@ -70,14 +70,14 @@ class ConfigWindow(tk.Toplevel):
         self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Mappature Colonne Foglio Avanzamento")
         self.create_mapping_tab(excel_notebook, ("file_e_fogli_excel", "mappatura_colonne_foglio_dati"), "Mappatura Colonne Foglio Dati")
 
-        # --- Main Tab 2: Coordinate ---
+        # --- Main Tab 2: Coordinate e Dati ---
         coords_tab = ttk.Frame(main_notebook)
-        main_notebook.add(coords_tab, text="Coordinate")
+        main_notebook.add(coords_tab, text="Coordinate e Dati")
         coords_notebook = ttk.Notebook(coords_tab)
         coords_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        self.create_generic_tab(coords_notebook, ("coordinate", "gui"), "GUI")
-        self.create_generic_tab(coords_notebook, ("coordinate", "odc"), "ODC")
+        self.create_generic_tab(coords_notebook, ("coordinate_e_dati", "gui"), "GUI")
+        self.create_generic_tab(coords_notebook, ("coordinate_e_dati", "odc"), "ODC")
 
         # --- Main Tab 3: Altre Impostazioni ---
         other_tab = ttk.Frame(main_notebook)

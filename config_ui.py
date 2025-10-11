@@ -6,35 +6,38 @@ import keyboard
 
 class CaptureHelper:
     """A helper class to create a temporary, fullscreen, transparent window
-    for capturing mouse coordinates without showing the main config window."""
+    for capturing mouse coordinates with a simple click."""
     def __init__(self, parent, on_capture_callback):
         self.parent = parent
         self.on_capture_callback = on_capture_callback
 
         self.capture_window = tk.Toplevel(parent)
-        self.capture_window.attributes('-alpha', 0.5)
+        self.capture_window.attributes('-alpha', 0.4)
         self.capture_window.attributes('-fullscreen', True)
-        self.capture_window.configure(bg='grey')
+        self.capture_window.configure(bg='grey', cursor="crosshair")
 
-        label = tk.Label(self.capture_window, text="Muovi il mouse sulla posizione desiderata e premi 'Ctrl' per catturare.",
-                         font=("Arial", 18), bg="white", fg="black")
-        label.pack(pady=100)
+        label_frame = tk.Frame(self.capture_window, bg="grey")
+        label_frame.pack(expand=True)
+        label = tk.Label(label_frame, text="Muovi il mouse sulla posizione desiderata e FAI CLICK per catturare.",
+                         font=("Arial", 22, "bold"), bg="white", fg="blue", relief="solid", borderwidth=2)
+        label.pack(pady=20, padx=20)
 
-        self.parent.withdraw()  # Hide the config window
-        keyboard.add_hotkey('ctrl', self.capture_coords, suppress=True)
+        self.parent.withdraw()
+        self.capture_window.bind("<Button-1>", self.capture_coords)
+        self.capture_window.focus_force()
 
-    def capture_coords(self):
+    def capture_coords(self, event=None):
+        """Callback for when the user clicks."""
         x, y = pyautogui.position()
-        keyboard.remove_hotkey('ctrl')
         self.capture_window.destroy()
-        self.parent.deiconify()  # Show the config window again
+        self.parent.deiconify()
         self.on_capture_callback((x, y))
 
 class ConfigWindow(tk.Toplevel):
     def __init__(self, parent):
         super().__init__(parent)
-        self.title("Configurazione")
-        self.geometry("750x800")
+        self.title("Configurazione Avanzata")
+        self.geometry("850x800")
         self.parent = parent
 
         self.config_data = self.load_config()
@@ -54,22 +57,56 @@ class ConfigWindow(tk.Toplevel):
             return None
 
     def create_widgets(self):
-        notebook = ttk.Notebook(self)
-        notebook.pack(pady=10, padx=10, expand=True, fill="both")
+        main_notebook = ttk.Notebook(self)
+        main_notebook.pack(pady=10, padx=10, expand=True, fill="both")
 
-        # Create tabs
-        self.create_tab(notebook, 'generali', "Impostazioni Generali")
-        self.create_tab(notebook, 'file_excel', "File e Fogli Excel")
-        self.create_tab(notebook, 'automazione_gui', "Coordinate GUI")
-        self.create_tab(notebook, 'procedura_odc', "Coordinate ODC")
-        self.create_tab(notebook, 'timing_e_ritardi', "Timing")
-        self.create_tab(notebook, 'parametri_ricerca', "Parametri Ricerca")
-        self.create_mapping_tab(notebook, 'mapping_colonne_dettaglio', "Mappatura Colonne")
+        # --- Main Tab 1: File e Fogli Excel ---
+        excel_tab = ttk.Frame(main_notebook)
+        main_notebook.add(excel_tab, text="File e Fogli Excel")
+        excel_notebook = ttk.Notebook(excel_tab)
+        excel_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+
+        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
+        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Mappature Colonne Foglio Avanzamento")
+        self.create_mapping_tab(excel_notebook, ("file_e_fogli_excel", "mappatura_colonne_foglio_dati"), "Mappatura Colonne Foglio Dati")
+
+        # --- Main Tab 2: Coordinate ---
+        coords_tab = ttk.Frame(main_notebook)
+        main_notebook.add(coords_tab, text="Coordinate")
+        coords_notebook = ttk.Notebook(coords_tab)
+        coords_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+
+        self.create_generic_tab(coords_notebook, ("coordinate", "gui"), "GUI")
+        self.create_generic_tab(coords_notebook, ("coordinate", "odc"), "ODC")
+
+        # --- Main Tab 3: Altre Impostazioni ---
+        other_tab = ttk.Frame(main_notebook)
+        main_notebook.add(other_tab, text="Altre Impostazioni")
+        other_notebook = ttk.Notebook(other_tab)
+        other_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+
+        self.create_generic_tab(other_notebook, ("generali",), "Generali")
+        self.create_generic_tab(other_notebook, ("timing_e_ritardi",), "Timing")
+        self.create_generic_tab(other_notebook, ("pulizia_appunti",), "Pulizia Appunti")
+        self.create_generic_tab(other_notebook, ("tasti_rapidi",), "Tasti Rapidi")
+
 
         btn_save = ttk.Button(self, text="Salva e Chiudi", command=self.save_config)
         btn_save.pack(pady=10)
 
-    def create_tab(self, notebook, key, title):
+    def get_nested_data(self, keys):
+        data = self.config_data
+        for key in keys:
+            data = data[key]
+        return data
+
+    def set_nested_data(self, keys, new_value):
+        data = self.config_data
+        for key in keys[:-1]:
+            data = data[key]
+        data[keys[-1]] = new_value
+
+    def create_generic_tab(self, notebook, keys, title):
         tab = ttk.Frame(notebook)
         notebook.add(tab, text=title)
 
@@ -82,27 +119,28 @@ class ConfigWindow(tk.Toplevel):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        self.populate_tab(scrollable_frame, key)
+        self.populate_generic_tab(scrollable_frame, keys)
 
-    def populate_tab(self, parent, key):
-        frame = ttk.LabelFrame(parent, text=key.replace('_', ' ').title())
+    def populate_generic_tab(self, parent, keys):
+        frame = ttk.LabelFrame(parent, text="Impostazioni")
         frame.pack(padx=10, pady=10, fill="x", expand=True)
 
-        if key not in self.config_data:
-            ttk.Label(frame, text=f"Sezione '{key}' non trovata.").pack()
+        try:
+            data_section = self.get_nested_data(keys)
+        except KeyError:
+            ttk.Label(frame, text=f"Sezione non trovata.").pack()
             return
 
-        self.vars[key] = {}
-        for i, (field, value) in enumerate(self.config_data[key].items()):
+        self.vars[keys] = {}
+        for i, (field, value) in enumerate(data_section.items()):
             ttk.Label(frame, text=f"{field}:").grid(row=i, column=0, sticky="w", padx=5, pady=5)
 
             var = tk.StringVar(value=str(value))
-            self.vars[key][field] = var
+            self.vars[keys][field] = var
 
-            # --- WIDGET DINAMICI ---
             if isinstance(value, bool):
                 widget = ttk.Combobox(frame, textvariable=var, values=["True", "False"], state="readonly")
-            elif "path" in field or "file" in field:
+            elif "percorso" in field:
                 widget_frame = ttk.Frame(frame)
                 entry = ttk.Entry(widget_frame, textvariable=var, width=60)
                 entry.pack(side="left", fill="x", expand=True)
@@ -120,7 +158,7 @@ class ConfigWindow(tk.Toplevel):
 
         frame.columnconfigure(1, weight=1)
 
-    def create_mapping_tab(self, notebook, key, title):
+    def create_mapping_tab(self, notebook, keys, title):
         tab = ttk.Frame(notebook)
         notebook.add(tab, text=title)
 
@@ -133,46 +171,40 @@ class ConfigWindow(tk.Toplevel):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        self.populate_mapping_tab(scrollable_frame, key)
+        self.populate_mapping_tab(scrollable_frame, keys)
 
-    def populate_mapping_tab(self, parent, key):
-        frame = ttk.LabelFrame(parent, text="Mappatura Colonne Dettaglio")
+    def populate_mapping_tab(self, parent, keys):
+        frame = ttk.LabelFrame(parent, text="Mappatura")
         frame.pack(padx=10, pady=10, fill="x", expand=True)
 
-        if key not in self.config_data:
-            ttk.Label(frame, text=f"Sezione '{key}' non trovata.").pack()
+        try:
+            data_section = self.get_nested_data(keys)
+        except KeyError:
+            ttk.Label(frame, text=f"Sezione non trovata.").pack()
             return
 
-        # Header
-        ttk.Label(frame, text="Nome Campo", font=("Arial", 10, "bold")).grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(frame, text="Nome Campo", font=("Arial", 10, "bold")).grid(row=0, column=0, padx=5, pady=5, sticky="w")
         ttk.Label(frame, text="Colonna Excel", font=("Arial", 10, "bold")).grid(row=0, column=1, padx=5, pady=5)
         ttk.Label(frame, text="Coordinata X", font=("Arial", 10, "bold")).grid(row=0, column=2, padx=5, pady=5)
 
-        self.vars[key] = []
-        for i, item in enumerate(self.config_data[key]):
+        self.vars[keys] = []
+        for i, item in enumerate(data_section):
             row_vars = {}
-
-            # Nome (read-only)
             ttk.Label(frame, text=item['nome']).grid(row=i + 1, column=0, sticky="w", padx=5, pady=5)
 
-            # Colonna Excel (editable)
             var_col = tk.StringVar(value=item['colonna_excel'])
             row_vars['colonna_excel'] = var_col
             ttk.Entry(frame, textvariable=var_col, width=15).grid(row=i + 1, column=1, padx=5, pady=5)
 
-            # Target X (editable)
             var_x = tk.StringVar(value=item['target_x_remoto'])
             row_vars['target_x_remoto'] = var_x
             ttk.Entry(frame, textvariable=var_x, width=15).grid(row=i + 1, column=2, padx=5, pady=5)
 
-            row_vars['nome'] = item['nome'] # Keep original name for saving
-            self.vars[key].append(row_vars)
+            row_vars['nome'] = item['nome']
+            self.vars[keys].append(row_vars)
 
     def browse_file(self, var_to_update):
-        filepath = filedialog.askopenfilename(
-            title="Seleziona un file",
-            filetypes=(("Tutti i file", "*.*"),)
-        )
+        filepath = filedialog.askopenfilename(title="Seleziona un file", filetypes=(("Tutti i file", "*.*"),))
         if filepath:
             var_to_update.set(filepath)
 
@@ -181,39 +213,41 @@ class ConfigWindow(tk.Toplevel):
             var_to_update.set(str(list(coords)))
             self.parent.focus_force()
             self.lift()
-
         CaptureHelper(self, on_capture)
 
     def update_config_data(self):
-        for section, fields in self.vars.items():
-            if section == 'mapping_colonne_dettaglio':
-                new_mapping_data = []
-                for row_vars in fields:
-                    new_item = {
-                        'nome': row_vars['nome'],
-                        'colonna_excel': row_vars['colonna_excel'].get(),
-                        'target_x_remoto': int(row_vars['target_x_remoto'].get())
-                    }
-                    new_mapping_data.append(new_item)
-                self.config_data[section] = new_mapping_data
-            else:
-                for field, var in fields.items():
-                    original_value = self.config_data[section][field]
-                    new_value_str = var.get()
+        for keys, section_vars in self.vars.items():
+            original_section = self.get_nested_data(keys)
 
+            if isinstance(original_section, list): # Handle list-based mappings
+                new_data = []
+                for row_vars in section_vars:
+                    new_item = {'nome': row_vars['nome']}
+                    try:
+                        new_item['colonna_excel'] = row_vars['colonna_excel'].get()
+                        new_item['target_x_remoto'] = int(row_vars['target_x_remoto'].get())
+                    except (ValueError, KeyError):
+                        pass # Should not happen if UI is built correctly
+                    new_data.append(new_item)
+                self.set_nested_data(keys, new_data)
+
+            elif isinstance(original_section, dict): # Handle dict-based generic sections
+                for field, var in section_vars.items():
+                    original_value = original_section[field]
+                    new_value_str = var.get()
                     try:
                         if isinstance(original_value, bool):
-                            self.config_data[section][field] = (new_value_str.lower() == 'true')
+                            original_section[field] = (new_value_str.lower() == 'true')
                         elif isinstance(original_value, int):
-                            self.config_data[section][field] = int(new_value_str)
+                            original_section[field] = int(new_value_str)
                         elif isinstance(original_value, float):
-                            self.config_data[section][field] = float(new_value_str)
+                            original_section[field] = float(new_value_str)
                         elif isinstance(original_value, list):
-                            self.config_data[section][field] = json.loads(new_value_str.replace("'", '"'))
+                            original_section[field] = json.loads(new_value_str.replace("'", '"'))
                         else:
-                            self.config_data[section][field] = new_value_str
+                            original_section[field] = new_value_str
                     except (ValueError, json.JSONDecodeError):
-                        self.config_data[section][field] = new_value_str
+                        original_section[field] = new_value_str
 
     def save_config(self):
         self.update_config_data()

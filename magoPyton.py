@@ -266,16 +266,17 @@ def esegui_incolla_e_tab(config, valore_incollato_str, target_coords, cella_exce
 
 # --- FUNZIONE PRINCIPALE DI AUTOMAZIONE ---
 def run_automation(config):
-    # Setup delle variabili dalla configurazione
+    # Setup delle variabili dalla nuova configurazione
     gen_cfg = config['generali']
-    file_cfg = config['file_excel']
-    param_cfg = config['parametri_ricerca']
-    map_cfg = config['mapping_colonne']
-    gui_cfg = config['automazione_gui']
+    file_cfg = config['file_e_fogli_excel']['impostazioni_file']
+    param_cfg = config['file_e_fogli_excel']['mappature_colonne_foglio_avanzamento']
+    col_mapping = config['file_e_fogli_excel']['mappatura_colonne_foglio_dati']
+    gui_cfg = config['coordinate']['gui']
+    odc_cfg = config['coordinate']['odc']
     timing_cfg = config['timing_e_ritardi']
     tasti_cfg = config['tasti_rapidi']
 
-    NOME_FILE_EXCEL = os.path.abspath(file_cfg['path_relativo'])
+    NOME_FILE_EXCEL = os.path.abspath(file_cfg['percorso_file_excel'])
 
     print(f"--- AVVIO AUTOMAZIONE (PID: {os.getpid()}) ---")
     try:
@@ -296,25 +297,24 @@ def run_automation(config):
 
     print(f"\nFASE 1: Lettura dati da '{os.path.basename(NOME_FILE_EXCEL)}'...")
 
-    col_mapping = config.get('mapping_colonne_dettaglio', [])
     colonne_da_leggere = [item['colonna_excel'] for item in col_mapping]
+    STATO_DA_CERCARE = "DA COMPLETARE"
 
     task_da_eseguire = None
     try:
         wb_leggi = openpyxl.load_workbook(NOME_FILE_EXCEL, data_only=True, keep_vba=True)
-        sheet_parametri = wb_leggi[file_cfg['foglio_parametri']]
-        sheet_dati = wb_leggi[file_cfg['foglio_dati']]
+        sheet_parametri = wb_leggi[file_cfg['nome_foglio_avanzamento']]
+        sheet_dati = wb_leggi[file_cfg['nome_foglio_dati']]
 
-        cantiere = param_cfg.get('ns_riferimento', '') # Use the new config field
+        # cantiere = param_cfg.get('ns_riferimento', '') # This seems to be unused now, keeping it commented for safety
 
-        for r in range(param_cfg['riga_inizio'], param_cfg['riga_fine'] + 1):
-            cella_stato_id = f"{param_cfg['colonna_stato']}{r}"
-            stato_raw = sheet_parametri[cella_stato_id].value
-
+        col_stato = sheet_parametri[param_cfg['colonna_stato']]
+        for cella_stato in col_stato:
+            stato_raw = cella_stato.value
             stato_pulito = str(stato_raw).strip().upper() if stato_raw is not None else ""
-            stato_da_cercare_pulito = param_cfg['stato_da_cercare'].strip().upper()
 
-            if stato_pulito == stato_da_cercare_pulito:
+            if stato_pulito == STATO_DA_CERCARE:
+                r = cella_stato.row
                 print(f"  --> TASK TROVATO ALLA RIGA {r}!")
                 r_inizio = sheet_parametri[f"{param_cfg['colonna_riga_inizio']}{r}"].value
                 r_fine = sheet_parametri[f"{param_cfg['colonna_riga_fine']}{r}"].value
@@ -330,7 +330,6 @@ def run_automation(config):
                 if dati_buffer:
                     task_da_eseguire = {
                         'riga_param_task': r,
-                        'cantiere': cantiere,
                         'data_rapporto': data_rapporto,
                         'dati_buffer': dati_buffer
                     }
@@ -356,9 +355,6 @@ def run_automation(config):
         if task_da_eseguire['data_rapporto']:
             esegui_incolla_singolo_click(config, task_da_eseguire['data_rapporto'], gui_cfg['coordinate_data_rapporto'], select_all=True)
             time.sleep(timing_cfg['pausa_tra_azioni_preliminari_finali'])
-        if task_da_eseguire['cantiere']:
-            esegui_incolla_singolo_click(config, str(task_da_eseguire['cantiere']), gui_cfg['coordinate_cantiere'])
-            pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
 
         # Ciclo sui dati
         righe_processate_blocco = 0
@@ -373,7 +369,7 @@ def run_automation(config):
 
                 if val is not None:
                     val_str = str(val)
-                    cella_id = f"{file_cfg['foglio_dati']}!{col_lettera}{riga_obj['riga_excel_num']}"
+                    cella_id = f"{file_cfg['nome_foglio_dati']}!{col_lettera}{riga_obj['riga_excel_num']}"
                     if not esegui_copia_da_buffer_e_verifica(config, val_str, cella_id):
                         raise Exception(f"Errore copia GUI per {cella_id}")
 

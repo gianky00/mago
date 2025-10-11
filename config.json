@@ -3,72 +3,68 @@
     "forzare_ricalcolo_excel": false,
     "path_tesseract_cmd": "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
   },
-  "file_excel": {
-    "path_relativo": "C:\\Users\\Coemi\\Desktop\\PERFETTO\\Dataease_ALLEGRETTI_02-2025.xlsm",
-    "foglio_dati": "DataEasePyton",
-    "foglio_parametri": "ParametriPyton",
-    "foglio_scarico_ore": "SCARICO ORE"
+  "file_e_fogli_excel": {
+    "impostazioni_file": {
+      "percorso_file_excel": "C:\\Users\\Coemi\\Desktop\\PERFETTO\\Dataease_ALLEGRETTI_02-2025.xlsm",
+      "nome_foglio_dati": "DataEasePyton",
+      "nome_foglio_avanzamento": "ParametriPyton"
+    },
+    "mappature_colonne_foglio_avanzamento": {
+      "colonna_stato": "D",
+      "colonna_riga_inizio": "B",
+      "colonna_riga_fine": "C",
+      "colonna_data_rapporto": "A"
+    },
+    "mappatura_colonne_foglio_dati": [
+      { "nome": "Commessa", "colonna_excel": "C", "target_x_remoto": 55 },
+      { "nome": "Matricola", "colonna_excel": "D", "target_x_remoto": 138 },
+      { "nome": "Area", "colonna_excel": "I", "target_x_remoto": 596 },
+      { "nome": "Forfait", "colonna_excel": "J", "target_x_remoto": 730 },
+      { "nome": "Misura", "colonna_excel": "K", "target_x_remoto": 795 },
+      { "nome": "Economia", "colonna_excel": "L", "target_x_remoto": 860 },
+      { "nome": "STR 25%", "colonna_excel": "M", "target_x_remoto": 925 },
+      { "nome": "STR 50%", "colonna_excel": "N", "target_x_remoto": 985 },
+      { "nome": "FERIE/ROL", "colonna_excel": "P", "target_x_remoto": 1110 },
+      { "nome": "MALATTIA", "colonna_excel": "Q", "target_x_remoto": 1175 },
+      { "nome": "CIG-SC-PH", "colonna_excel": "R", "target_x_remoto": 1260 },
+      { "nome": "Descrizione Attività", "colonna_excel": "T", "target_x_remoto": 488 }
+    ]
   },
-  "parametri_ricerca": {
-    "colonna_stato": "D",
-    "colonna_riga_inizio": "B",
-    "colonna_riga_fine": "C",
-    "riga_inizio": 2,
-    "riga_fine": 200,
-    "colonna_data_rapporto": "A",
-    "stato_da_cercare": "DA COMPLETARE",
-    "ns_riferimento": "ISAB SUD"
-  },
-  "mapping_colonne": {
-    "colonna_ok_dati": "A"
-  },
-  "mapping_colonne_dettaglio": [
-    { "nome": "Commessa", "colonna_excel": "C", "target_x_remoto": 55 },
-    { "nome": "Matricola", "colonna_excel": "D", "target_x_remoto": 138 },
-    { "nome": "Area", "colonna_excel": "I", "target_x_remoto": 596 },
-    { "nome": "Forfait", "colonna_excel": "J", "target_x_remoto": 730 },
-    { "nome": "Misura", "colonna_excel": "K", "target_x_remoto": 795 },
-    { "nome": "Economia", "colonna_excel": "L", "target_x_remoto": 860 },
-    { "nome": "STR 25%", "colonna_excel": "M", "target_x_remoto": 925 },
-    { "nome": "STR 50%", "colonna_excel": "N", "target_x_remoto": 985 },
-    { "nome": "FERIE/ROL", "colonna_excel": "P", "target_x_remoto": 1110 },
-    { "nome": "MALATTIA", "colonna_excel": "Q", "target_x_remoto": 1175 },
-    { "nome": "CIG-SC-PH", "colonna_excel": "R", "target_x_remoto": 1260 },
-    { "nome": "Descrizione Attività", "colonna_excel": "T", "target_x_remoto": -1 }
-  ],
-  "automazione_gui": {
-    "coordinate_data_rapporto": [212, 172],
-    "coordinate_cantiere": [280, 300],
-    "coordinate_apertura_nuovo_foglio": [25, 88],
-    "coordinate_salvataggio_foglio": [85, 85],
-    "coordinate_elimina_flag_stampa": [777, 473],
-    "coordinate_pulsante_ok": [846, 590]
-  },
-  "procedura_odc": {
-    "regione_screenshot_popup_generico": [836, 459, 252, 173],
-    "testo_da_cercare_popup_generico": "non trovato",
-    "pausa_attesa_popup": 0.7,
-    "coordinate_popup_tasto_no": [1042, 600],
-    "coordinate_barra_preferiti": [68, 34],
-    "coordinate_commesse_variante": [145, 128],
-    "coordinate_casella_commessa": [59, 169],
-    "coordinate_casella_descrizione": [334, 169],
-    "coordinate_casella_commessa_padre": [535, 420],
-    "coordinate_casella_ns_rif": [533, 522],
-    "coordinate_apri_elenco_gruppo": [616, 559],
-    "coordinate_casella_gruppo_generico": [588, 592],
-    "coordinate_casella_resp_commessa": [682, 706],
-    "coordinate_casella_resp_cantiere": [685, 730],
-    "coordinate_barra_causali_depositi": [278, 243],
-    "coordinate_apri_elenco_deposito": [626, 587],
-    "coordinate_casella_deposito": [589, 619],
-    "coordinate_chiudi_rapportino_commessa": [333, 60],
-    "regione_popup_attenzione_sal": [721, 443, 483, 208],
-    "testo_popup_attenzione_sal": "Nei SAL generati per questa commessa verranno",
-    "coordinate_click_popup_attenzione_sal": [1147, 618],
-    "regione_popup_codice_iva": [727, 452, 471, 185],
-    "testo_popup_codice_iva": "Il codice IVA del cliente viene impostato solo nella scheda",
-    "coordinate_click_popup_codice_iva": [1145, 603]
+  "coordinate": {
+    "gui": {
+      "coordinate_data_rapporto": [212, 172],
+      "coordinate_cantiere": [280, 300],
+      "coordinate_apertura_nuovo_foglio": [25, 88],
+      "coordinate_salvataggio_foglio": [85, 85],
+      "coordinate_elimina_flag_stampa": [777, 473],
+      "coordinate_pulsante_ok": [846, 590]
+    },
+    "odc": {
+      "regione_screenshot_popup_generico": [836, 459, 252, 173],
+      "testo_da_cercare_popup_generico": "non trovato",
+      "pausa_attesa_popup": 0.7,
+      "coordinate_popup_tasto_no": [1042, 600],
+      "coordinate_barra_preferiti": [68, 34],
+      "coordinate_commesse_variante": [145, 128],
+      "coordinate_casella_commessa": [59, 169],
+      "coordinate_casella_descrizione": [334, 169],
+      "coordinate_casella_commessa_padre": [535, 420],
+      "coordinate_casella_ns_rif": [533, 522],
+      "coordinate_apri_elenco_gruppo": [616, 559],
+      "coordinate_casella_gruppo_generico": [588, 592],
+      "coordinate_casella_resp_commessa": [682, 706],
+      "coordinate_casella_resp_cantiere": [685, 730],
+      "coordinate_barra_causali_depositi": [278, 243],
+      "coordinate_apri_elenco_deposito": [626, 587],
+      "coordinate_casella_deposito": [589, 619],
+      "coordinate_chiudi_rapportino_commessa": [333, 60],
+      "regione_popup_attenzione_sal": [721, 443, 483, 208],
+      "testo_popup_attenzione_sal": "Nei SAL generati per questa commessa verranno",
+      "coordinate_click_popup_attenzione_sal": [1147, 618],
+      "regione_popup_codice_iva": [727, 452, 471, 185],
+      "testo_popup_codice_iva": "Il codice IVA del cliente viene impostato solo nella scheda",
+      "coordinate_click_popup_codice_iva": [1145, 603]
+    }
   },
   "timing_e_ritardi": {
     "y_iniziale_remoto": 375,

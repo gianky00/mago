@@ -28,7 +28,7 @@ if '%errorlevel%' NEQ '0' (
 ::  Configuration
 :: ============================================================================
 set "VENV_NAME=venv"
-set "PYTHON_SCRIPT=magoPyton.py"
+set "PYTHON_SCRIPT=gui.py"
 set "REQUIREMENTS_FILE=requirements.txt"
 
 :: ============================================================================

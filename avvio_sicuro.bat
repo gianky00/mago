@@ -1,5 +1,5 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal
 
 :: ============================================================================
 ::  Request administrator privileges
@@ -15,7 +15,7 @@ if '%errorlevel%' NEQ '0' (
 
 :UACPrompt
     echo Set UAC = CreateObject^("Shell.Application"^) > "%temp%\getadmin.vbs"
-    echo UAC.ShellExecute "!~s0!", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
+    echo UAC.ShellExecute "%~s0", "", "", "runas", 1 >> "%temp%\getadmin.vbs"
     "%temp%\getadmin.vbs"
     exit /B
 
@@ -38,6 +38,7 @@ echo.
 echo Searching for a valid Python installation...
 
 set "PYTHON_EXE="
+:: Use 'where' to find all python.exe in PATH and pick the first valid one
 for /f "delims=" %%i in ('where python 2^>nul') do (
     if not defined PYTHON_EXE (
         echo "%%i" | find /I "\WindowsApps\" >nul
@@ -47,6 +48,7 @@ for /f "delims=" %%i in ('where python 2^>nul') do (
     )
 )
 
+:: Fallback if not found in PATH or if 'where' only found invalid ones
 if not defined PYTHON_EXE (
     echo Fallback: Searching in common installation directories...
     for /r "%ProgramFiles%" %%f in (python.exe) do (
@@ -69,9 +71,11 @@ if not defined PYTHON_EXE (
     )
 )
 
+:found_python
 if not defined PYTHON_EXE (
     echo.
     echo ERROR: Could not find a valid Python installation.
+    echo Make sure a real version of Python is installed and in the PATH.
     goto :error
 )
 
@@ -79,44 +83,28 @@ echo Found Python at: %PYTHON_EXE%
 echo.
 
 :: ============================================================================
-::  Create and activate the virtual environment (Robust Method)
+::  Create and activate the virtual environment
 :: ============================================================================
 if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
     echo Creating virtual environment '%VENV_NAME%'...
-
-    :: Step 1: Create a minimal environment without pip to avoid AV conflicts.
-    "%PYTHON_EXE%" -m venv "%~dp0%VENV_NAME%" --without-pip
+    
+    :: Pre-create the directory to avoid race conditions with AV/system
+    if not exist "%~dp0%VENV_NAME%" mkdir "%~dp0%VENV_NAME%"
+    
+    "%PYTHON_EXE%" -m venv "%~dp0%VENV_NAME%"
     if %errorlevel% neq 0 (
-        echo ERROR: Failed to create the basic virtual environment structure.
+        echo ERROR: Failed to create virtual environment.
         goto :error
     )
-
-    echo Activating the minimal environment...
-    call "%~dp0%VENV_NAME%\Scripts\activate.bat"
-
-    echo Installing/upgrading pip inside the environment...
-    :: Step 2: Use ensurepip to robustly install pip in the created venv.
-    python.exe -m ensurepip --upgrade
-    if %errorlevel% neq 0 (
-        echo ERROR: Failed to install pip in the virtual environment.
-        goto :error
-    )
-    echo Virtual environment created and pip is ready.
-
+    echo Virtual environment created.
 ) else (
     echo Virtual environment '%VENV_NAME%' already exists.
-    echo Activating the virtual environment...
-    call "%~dp0%VENV_NAME%\Scripts\activate.bat"
 )
-echo.
 
-:: ============================================================================
-::  Upgrade core packaging tools
-:: ============================================================================
-echo Upgrading core packaging tools (pip, setuptools, wheel)...
-python.exe -m pip install --upgrade pip setuptools wheel --no-cache-dir
+echo Activating the virtual environment...
+call "%~dp0%VENV_NAME%\Scripts\activate.bat"
 if %errorlevel% neq 0 (
-    echo ERROR: Failed to upgrade packaging tools.
+    echo ERROR: Failed to activate virtual environment.
     goto :error
 )
 echo.
@@ -125,6 +113,7 @@ echo.
 ::  Install dependencies
 :: ============================================================================
 echo Installing dependencies from '%REQUIREMENTS_FILE%'...
+echo (Using --no-cache-dir to avoid permission issues)
 python.exe -m pip install -r "%REQUIREMENTS_FILE%" --no-cache-dir
 if %errorlevel% neq 0 (
     echo ERROR: Failed to install dependencies.

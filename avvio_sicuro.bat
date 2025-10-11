@@ -49,13 +49,19 @@ for /f "delims=" %%i in ('where python 2^>nul') do (
 
 if not defined PYTHON_EXE (
     echo Fallback: Searching in common installation directories...
+    for /r "%ProgramFiles%" %%f in (python.exe) do (
+        if not defined PYTHON_EXE (
+            echo "%%f" | find /I "\WindowsApps\" >nul
+            if errorlevel 1 ( set "PYTHON_EXE=%%~f" )
+        )
+    )
     for /r "%ProgramFiles(x86)%" %%f in (python.exe) do (
         if not defined PYTHON_EXE (
             echo "%%f" | find /I "\WindowsApps\" >nul
             if errorlevel 1 ( set "PYTHON_EXE=%%~f" )
         )
     )
-    for /r "%ProgramFiles%" %%f in (python.exe) do (
+    for /r "%LocalAppData%\Programs\Python" %%f in (python.exe) do (
         if not defined PYTHON_EXE (
             echo "%%f" | find /I "\WindowsApps\" >nul
             if errorlevel 1 ( set "PYTHON_EXE=%%~f" )
@@ -105,16 +111,40 @@ if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
 echo.
 
 :: ============================================================================
+::  Upgrade core packaging tools
+:: ============================================================================
+echo Upgrading core packaging tools (pip, setuptools, wheel)...
+python.exe -m pip install --upgrade pip setuptools wheel --no-cache-dir
+if %errorlevel% neq 0 (
+    echo ERROR: Failed to upgrade packaging tools.
+    goto :error
+)
+echo.
+
+:: ============================================================================
 ::  Install dependencies
 :: ============================================================================
 echo Installing dependencies from '%REQUIREMENTS_FILE%'...
-python.exe -m pip install -r "%REQUIREMENTS_FILE%" --no-cache-dir --upgrade
+python.exe -m pip install -r "%REQUIREMENTS_FILE%" --no-cache-dir
 if %errorlevel% neq 0 (
     echo ERROR: Failed to install dependencies.
     goto :error
 )
 echo Dependencies installed successfully.
 echo.
+
+:: ============================================================================
+::  Check for Tesseract installation
+:: ============================================================================
+set "TESSERACT_PATH=C:\Program Files\Tesseract-OCR\tesseract.exe"
+if not exist "%TESSERACT_PATH%" (
+    echo.
+    echo WARNING: Tesseract OCR does not appear to be installed at '%TESSERACT_PATH%'.
+    echo The automation may not work correctly if OCR popups are required.
+    echo Please install Tesseract from https://github.com/UB-Mannheim/tesseract/wiki
+    echo and ensure it is installed in the default path.
+    echo.
+)
 
 :: ============================================================================
 ::  Run the main Python script
@@ -134,9 +164,9 @@ goto :end
 :error
 echo.
 echo An error occurred. The window will remain open for analysis.
-pause >nul
+pause
 
 :end
 echo.
 echo Press any key to close the window.
-pause >nul
+pause

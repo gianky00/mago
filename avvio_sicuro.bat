@@ -144,7 +144,7 @@ echo Checking for Tesseract OCR installation...
 
 set "TESSERACT_DIR=%ProgramFiles%\Tesseract-OCR"
 set "TESSERACT_EXE=%TESSERACT_DIR%\tesseract.exe"
-set "TESSERACT_URL=https://github.com/UB-Mannheim/tesseract/releases/download/v5.4.0/tesseract-ocr-w64-setup-v5.4.0.exe"
+set "TESSERACT_URL=https://github.com/UB-Mannheim/tesseract/releases/download/v5.2.0/tesseract-ocr-w64-setup-v5.2.0.20220712.exe"
 set "TESSERACT_INSTALLER=%TEMP%\tesseract-installer.exe"
 
 if exist "%TESSERACT_EXE%" (
@@ -154,9 +154,13 @@ if exist "%TESSERACT_EXE%" (
 
     echo Downloading Tesseract installer using Python...
     python.exe download_util.py "%TESSERACT_URL%" "%TESSERACT_INSTALLER%"
+    if %errorlevel% neq 0 (
+        echo ERROR: The Python download script failed.
+        goto :error
+    )
 
     if not exist "%TESSERACT_INSTALLER%" (
-        echo ERROR: Failed to download Tesseract installer.
+        echo ERROR: Download script ran but the installer file was not created.
         echo Please install it manually from: %TESSERACT_URL%
         goto :error
     )
@@ -176,6 +180,10 @@ if exist "%TESSERACT_EXE%" (
     :: Use 'start' to launch the installer in a separate, non-blocking process.
     :: This avoids both the deadlock from 'start /wait' and the race condition from direct execution.
     start "" "%TESSERACT_INSTALLER%" /S /AllUsers /D="%ProgramFiles%\Tesseract-OCR"
+    if %errorlevel% neq 0 (
+        echo ERROR: Tesseract installer failed to start.
+        goto :error
+    )
 
     echo Waiting for installation to complete (will check for up to 90 seconds)...
     set "TIMEOUT_SECONDS=90"

@@ -181,8 +181,35 @@ if exist "%TESSERACT_EXE%" (
     )
     echo Downloaded file size is %FILESIZE% bytes. Looks good.
 
-    echo Running Tesseract installer silently...
-    "%TESSERACT_INSTALLER%" /S /AllUsers /D="%ProgramFiles%\Tesseract-OCR"
+    echo Running Tesseract installer. This may take a moment...
+    :: Use 'start' to launch the installer in a separate, non-blocking process.
+    :: This avoids both the deadlock from 'start /wait' and the race condition from direct execution.
+    start "" "%TESSERACT_INSTALLER%" /S /AllUsers /D="%ProgramFiles%\Tesseract-OCR"
+
+    echo Waiting for installation to complete (will check for up to 90 seconds)...
+    set "TIMEOUT_SECONDS=90"
+    set "COUNT=0"
+    :wait_for_tesseract_loop
+    if exist "%TESSERACT_EXE%" (
+        echo Tesseract executable found.
+        goto :tesseract_install_finished
+    )
+
+    if %COUNT% GEQ %TIMEOUT_SECONDS% (
+        echo ERROR: Tesseract installation timed out after %TIMEOUT_SECONDS% seconds.
+        echo The installer may have failed or is still running. Please check the Task Manager.
+        del "%TESSERACT_INSTALLER%"
+        goto :error
+    )
+
+    :: Wait for 2 seconds before checking again
+    timeout /t 2 /nobreak >nul
+    set /a COUNT+=2
+    goto :wait_for_tesseract_loop
+
+    :tesseract_install_finished
+    :: Brief pause to ensure file handles are released before proceeding
+    timeout /t 2 /nobreak >nul
 
     del "%TESSERACT_INSTALLER%"
 

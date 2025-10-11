@@ -11,6 +11,50 @@ import sys # Per flushare l'output della percentuale
 import os # Per ottenere il percorso assoluto del file
 import keyboard # Per attendere input da tastiera e hotkeys
 import subprocess # Per un riavvio più robusto dello script
+import logging
+import builtins
+
+# --- CONFIGURAZIONE LOGGING ---
+# Il logger ora scriverà solo su file. La stampa a console è gestita
+# dalla funzione print personalizzata che sostituisce 'builtins.print'.
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_file = 'automazione.log'
+
+# Configura il logger per scrivere solo su file.
+file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+file_handler.setFormatter(log_formatter)
+
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+# Rimuovi eventuali handler pre-esistenti per evitare duplicazioni
+if logger.hasHandlers():
+    logger.handlers.clear()
+logger.addHandler(file_handler)
+
+# Salva una referenza alla funzione print originale
+original_print = builtins.print
+
+def custom_print(*args, **kwargs):
+    """
+    Una funzione print personalizzata che fa due cose:
+    1. Chiama la funzione print originale per visualizzare l'output sulla console.
+    2. Logga il messaggio su file (se non è una stringa vuota).
+    Questo approccio risolve il TypeError con argomenti come 'end' e 'flush'.
+    """
+    # Chiama la funzione print originale per mantenere il comportamento standard
+    original_print(*args, **kwargs)
+
+    # Costruisci il messaggio da loggare, gestendo il separatore
+    sep = kwargs.get('sep', ' ')
+    message = sep.join(map(str, args))
+
+    # Logga il messaggio solo se non è vuoto o composto da soli spazi
+    if message.strip():
+        logger.info(message)
+
+# Rimpiazza la funzione print globale con la nostra versione personalizzata
+builtins.print = custom_print
+
 
 # --- NUOVO: Import per Screenshot e OCR ---
 try:
@@ -34,6 +78,12 @@ except ImportError:
     WIN32_AVAILABLE = False
 
 # --- CONFIGURAZIONE INIZIALE (MODIFICA QUESTI VALORI!) ---
+
+# NUOVO: Flag per disabilitare la funzione di ricalcolo di Excel con pywin32,
+# che a volte può essere instabile o causare crash.
+# Impostare su True solo se si è sicuri che funzioni correttamente sul proprio sistema.
+FORZARE_RICALCOLO_EXCEL = False
+
 NOME_FILE_EXCEL_REL = r'C:\Users\Coemi\Desktop\PERFETTO\Dataease_ALLEGRETTI_02-2025.xlsm' # Esempio, modifica!
 NOME_FILE_EXCEL = os.path.abspath(NOME_FILE_EXCEL_REL)
 
@@ -461,15 +511,19 @@ def main():
     except Exception as e_hotkey_setup:
         print(f"ATTENZIONE (PID: {current_pid}): Impossibile impostare l'hotkey di riavvio '{TASTO_PER_RIAVVIARE}': {e_hotkey_setup}")
     print(f"Avvio automazione... (PID: {current_pid})")
-    if WIN32_AVAILABLE:
-        if not force_excel_recalculation(NOME_FILE_EXCEL):
-            print(f"\nERRORE CRITICO (PID: {current_pid}): Impossibile forzare il ricalcolo del file Excel.")
-            return
+    if FORZARE_RICALCOLO_EXCEL:
+        if WIN32_AVAILABLE:
+            if not force_excel_recalculation(NOME_FILE_EXCEL):
+                print(f"\nERRORE CRITICO (PID: {current_pid}): Impossibile forzare il ricalcolo del file Excel.")
+                # Decidi se uscire o continuare comunque. Per ora, usciamo.
+                return
+            else:
+                print(f"Ricalcolo forzato completato con successo. (PID: {current_pid})")
+                time.sleep(1)
         else:
-            print(f"Ricalcolo forzato completato con successo. (PID: {current_pid})")
-            time.sleep(1)
+            print(f"\nATTENZIONE (PID: {current_pid}): Il ricalcolo e' abilitato (FORZARE_RICALCOLO_EXCEL=True) ma la libreria pywin32 non e' disponibile.")
     else:
-        print(f"\nATTENZIONE (PID: {current_pid}): Impossibile forzare il ricalcolo (libreria pywin32 mancante).")
+        print("\nINFO: Il ricalcolo forzato di Excel e' disabilitato tramite flag (FORZARE_RICALCOLO_EXCEL=False).")
     print(f"\nFASE 1: Lettura parametri e buffer dati da '{os.path.basename(NOME_FILE_EXCEL)}'... (PID: {current_pid})")
     colonne_config = []
     # Associa solo le colonne con una X target. 'T' viene letta ma non ha una X, quindi non verrà inclusa qui.

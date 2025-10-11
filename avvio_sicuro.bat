@@ -137,17 +137,51 @@ echo Dependencies installed successfully.
 echo.
 
 :: ============================================================================
-::  Check for Tesseract installation
+::  Check for and Install Tesseract OCR
 :: ============================================================================
-set "TESSERACT_PATH=C:\Program Files\Tesseract-OCR\tesseract.exe"
-if not exist "%TESSERACT_PATH%" (
-    echo.
-    echo WARNING: Tesseract OCR does not appear to be installed at '%TESSERACT_PATH%'.
-    echo The automation may not work correctly if OCR popups are required.
-    echo Please install Tesseract from https://github.com/UB-Mannheim/tesseract/wiki
-    echo and ensure it is installed in the default path.
-    echo.
+echo.
+echo Checking for Tesseract OCR installation...
+
+set "TESSERACT_DIR=%ProgramFiles%\Tesseract-OCR"
+set "TESSERACT_EXE=%TESSERACT_DIR%\tesseract.exe"
+set "TESSERACT_URL=https://github.com/UB-Mannheim/tesseract/releases/download/v5.4.0/tesseract-ocr-w64-setup-v5.4.0.exe"
+set "TESSERACT_INSTALLER=%TEMP%\tesseract-installer.exe"
+
+if exist "%TESSERACT_EXE%" (
+    echo Tesseract is already installed at '%TESSERACT_EXE%'.
+) else (
+    echo Tesseract not found. Attempting to download and install automatically...
+
+    echo Downloading Tesseract installer from %TESSERACT_URL%...
+    powershell -Command "Invoke-WebRequest -Uri '%TESSERACT_URL%' -OutFile '%TESSERACT_INSTALLER%'"
+
+    if not exist "%TESSERACT_INSTALLER%" (
+        echo ERROR: Failed to download Tesseract installer.
+        echo Please install it manually from: %TESSERACT_URL%
+        goto :error
+    )
+
+    echo Running Tesseract installer silently...
+    start /wait "" "%TESSERACT_INSTALLER%" /S
+
+    del "%TESSERACT_INSTALLER%"
+
+    if not exist "%TESSERACT_EXE%" (
+        echo ERROR: Tesseract installation failed. The executable was not found at the default location.
+        goto :error
+    )
+    echo Tesseract installed successfully.
 )
+
+echo.
+echo Updating Tesseract path in config.json...
+python.exe update_config.py "%TESSERACT_EXE%"
+if %errorlevel% neq 0 (
+    echo WARNING: Failed to update Tesseract path in config.json.
+) else (
+    echo Configuration updated successfully.
+)
+echo.
 
 :: ============================================================================
 ::  Run the main Python script

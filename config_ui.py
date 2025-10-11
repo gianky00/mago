@@ -114,6 +114,9 @@ class ConfigWindow(tk.Toplevel):
                 widget = widget_frame
             else:
                 widget = ttk.Entry(frame, textvariable=var, width=50)
+                # Make specific fields in 'parametri_ricerca' read-only as per user request
+                if key == 'parametri_ricerca' and field in ['riga_inizio', 'riga_fine', 'stato_da_cercare']:
+                    widget.config(state='readonly')
 
             widget.grid(row=i, column=1, sticky="ew", padx=5, pady=5)
 

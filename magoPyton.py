@@ -114,7 +114,7 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
         return False
     try:
         pytesseract.pytesseract.tesseract_cmd = config['generali']['path_tesseract_cmd']
-        time.sleep(config['procedura_odc']['pausa_attesa_popup'])
+        time.sleep(config['coordinate']['odc']['pausa_attesa_popup'])
         screenshot = pyautogui.screenshot(region=regione_screenshot)
         screenshot.save(f"debug_popup_{nome_popup_log}.png")
         testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
@@ -135,12 +135,13 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
 
 def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa):
     print("\n--- INIZIO PROCEDURA REGISTRAZIONE ODC ---")
-    odc_cfg = config['procedura_odc']
+    odc_cfg = config['coordinate']['odc']
+    gui_cfg = config['coordinate']['gui']
     try:
         pyautogui.click(odc_cfg['coordinate_popup_tasto_no']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_barra_preferiti']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_commesse_variante']); time.sleep(1.5)
-        pyautogui.click(config['automazione_gui']['coordinate_apertura_nuovo_foglio']); time.sleep(1.0)
+        pyautogui.click(gui_cfg['coordinate_apertura_nuovo_foglio']); time.sleep(1.0)
 
         pyautogui.click(odc_cfg['coordinate_casella_commessa'])
         pyautogui.write(str(valore_odc_fallito), interval=0.05)
@@ -182,7 +183,7 @@ def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_com
         pyautogui.click(odc_cfg['coordinate_apri_elenco_deposito']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_casella_deposito']); time.sleep(0.5)
 
-        pyautogui.click(config['automazione_gui']['coordinate_salvataggio_foglio']); time.sleep(2.0)
+        pyautogui.click(gui_cfg['coordinate_salvataggio_foglio']); time.sleep(2.0)
         pyautogui.click(odc_cfg['coordinate_chiudi_rapportino_commessa']); time.sleep(1.5)
 
         print("--- PROCEDURA REGISTRAZIONE ODC COMPLETATA ---")
@@ -194,7 +195,7 @@ def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_com
 
 def controlla_e_gestisci_popup_odc(config, valore_odc_fallito, dati_riga_completa):
     if not OCR_AVAILABLE: return False
-    odc_cfg = config['procedura_odc']
+    odc_cfg = config['coordinate']['odc']
     try:
         pytesseract.pytesseract.tesseract_cmd = config['generali']['path_tesseract_cmd']
         time.sleep(odc_cfg['pausa_attesa_popup'])
@@ -266,16 +267,17 @@ def esegui_incolla_e_tab(config, valore_incollato_str, target_coords, cella_exce
 
 # --- FUNZIONE PRINCIPALE DI AUTOMAZIONE ---
 def run_automation(config):
-    # Setup delle variabili dalla configurazione
+    # Setup delle variabili dalla nuova configurazione
     gen_cfg = config['generali']
-    file_cfg = config['file_excel']
-    param_cfg = config['parametri_ricerca']
-    map_cfg = config['mapping_colonne']
-    gui_cfg = config['automazione_gui']
+    file_cfg = config['file_e_fogli_excel']['impostazioni_file']
+    param_cfg = config['file_e_fogli_excel']['mappature_colonne_foglio_avanzamento']
+    col_mapping = config['file_e_fogli_excel']['mappatura_colonne_foglio_dati']
+    gui_cfg = config['coordinate']['gui']
+    odc_cfg = config['coordinate']['odc']
     timing_cfg = config['timing_e_ritardi']
     tasti_cfg = config['tasti_rapidi']
 
-    NOME_FILE_EXCEL = os.path.abspath(file_cfg['path_relativo'])
+    NOME_FILE_EXCEL = os.path.abspath(file_cfg['percorso_file_excel'])
 
     print(f"--- AVVIO AUTOMAZIONE (PID: {os.getpid()}) ---")
     try:
@@ -296,24 +298,24 @@ def run_automation(config):
 
     print(f"\nFASE 1: Lettura dati da '{os.path.basename(NOME_FILE_EXCEL)}'...")
 
-    colonne_config = list(zip(map_cfg['colonne_da_leggere'], map_cfg['target_x_remoto']))
+    colonne_da_leggere = [item['colonna_excel'] for item in col_mapping]
+    STATO_DA_CERCARE = "DA COMPLETARE"
 
     task_da_eseguire = None
     try:
         wb_leggi = openpyxl.load_workbook(NOME_FILE_EXCEL, data_only=True, keep_vba=True)
-        sheet_parametri = wb_leggi[file_cfg['foglio_parametri']]
-        sheet_dati = wb_leggi[file_cfg['foglio_dati']]
+        sheet_parametri = wb_leggi[file_cfg['nome_foglio_avanzamento']]
+        sheet_dati = wb_leggi[file_cfg['nome_foglio_dati']]
 
-        cantiere = param_cfg.get('ns_riferimento', '') # Use the new config field
+        # cantiere = param_cfg.get('ns_riferimento', '') # This seems to be unused now, keeping it commented for safety
 
-        for r in range(param_cfg['riga_inizio'], param_cfg['riga_fine'] + 1):
-            cella_stato_id = f"{param_cfg['colonna_stato']}{r}"
-            stato_raw = sheet_parametri[cella_stato_id].value
-
+        col_stato = sheet_parametri[param_cfg['colonna_stato']]
+        for cella_stato in col_stato:
+            stato_raw = cella_stato.value
             stato_pulito = str(stato_raw).strip().upper() if stato_raw is not None else ""
-            stato_da_cercare_pulito = param_cfg['stato_da_cercare'].strip().upper()
 
-            if stato_pulito == stato_da_cercare_pulito:
+            if stato_pulito == STATO_DA_CERCARE:
+                r = cella_stato.row
                 print(f"  --> TASK TROVATO ALLA RIGA {r}!")
                 r_inizio = sheet_parametri[f"{param_cfg['colonna_riga_inizio']}{r}"].value
                 r_fine = sheet_parametri[f"{param_cfg['colonna_riga_fine']}{r}"].value
@@ -322,14 +324,13 @@ def run_automation(config):
 
                 dati_buffer = []
                 for r_dati in range(r_inizio, r_fine + 1):
-                    dati_riga = {col: sheet_dati[f"{col}{r_dati}"].value for col in map_cfg['colonne_da_leggere']}
+                    dati_riga = {col: sheet_dati[f"{col}{r_dati}"].value for col in colonne_da_leggere}
                     if any(dati_riga.values()):
                         dati_buffer.append({'riga_excel_num': r_dati, 'dati_colonne': dati_riga})
 
                 if dati_buffer:
                     task_da_eseguire = {
                         'riga_param_task': r,
-                        'cantiere': cantiere,
                         'data_rapporto': data_rapporto,
                         'dati_buffer': dati_buffer
                     }
@@ -355,9 +356,6 @@ def run_automation(config):
         if task_da_eseguire['data_rapporto']:
             esegui_incolla_singolo_click(config, task_da_eseguire['data_rapporto'], gui_cfg['coordinate_data_rapporto'], select_all=True)
             time.sleep(timing_cfg['pausa_tra_azioni_preliminari_finali'])
-        if task_da_eseguire['cantiere']:
-            esegui_incolla_singolo_click(config, str(task_da_eseguire['cantiere']), gui_cfg['coordinate_cantiere'])
-            pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
 
         # Ciclo sui dati
         righe_processate_blocco = 0
@@ -365,22 +363,28 @@ def run_automation(config):
             y_target = timing_cfg['y_iniziale_remoto'] + (righe_processate_blocco * timing_cfg['incremento_y_remoto'])
             print(f"Processando riga {i+1}/{len(task_da_eseguire['dati_buffer'])}...", end='\r'); sys.stdout.flush()
 
-            for col_lettera, target_x in colonne_config:
+            for mapping_item in col_mapping:
+                col_lettera = mapping_item['colonna_excel']
+                target_x = mapping_item['target_x_remoto']
                 val = riga_obj['dati_colonne'].get(col_lettera)
+
                 if val is not None:
                     val_str = str(val)
-                    cella_id = f"{file_cfg['foglio_dati']}!{col_lettera}{riga_obj['riga_excel_num']}"
+                    cella_id = f"{file_cfg['nome_foglio_dati']}!{col_lettera}{riga_obj['riga_excel_num']}"
                     if not esegui_copia_da_buffer_e_verifica(config, val_str, cella_id):
                         raise Exception(f"Errore copia GUI per {cella_id}")
 
-                    esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
+                    if target_x > 0: # Paste only if target_x is valid
+                        esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
 
-                    if target_x == map_cfg['target_x_remoto'][0]: # Se è la prima colonna
-                        if controlla_e_gestisci_popup_odc(config, val_str, riga_obj['dati_colonne']):
-                            print("  Re-inserimento dato dopo gestione popup...")
-                            esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
+                        # Gestione popup ODC sulla prima colonna effettivamente incollata
+                        if col_lettera == col_mapping[0]['colonna_excel']:
+                            if controlla_e_gestisci_popup_odc(config, val_str, riga_obj['dati_colonne']):
+                                print("  Re-inserimento dato dopo gestione popup...")
+                                esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
                 else:
-                    pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
+                     if target_x > 0:
+                        pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
 
             righe_processate_blocco += 1
             if righe_processate_blocco >= timing_cfg['max_righe_per_blocco_tab']:

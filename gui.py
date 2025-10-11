@@ -43,8 +43,21 @@ class App:
 
             messagebox.showinfo("Completato", "Automazione terminata con successo!")
 
+        except OSError as e:
+            # Questo errore si verifica tipicamente su Windows quando si tenta di aprire un file
+            # (es. con os.startfile) ma non c'è un'applicazione predefinita per quel tipo di file.
+            # Esempio: tentare di aprire un .pdf senza un lettore PDF installato.
+            error_message = (
+                "Errore di associazione file.\n\n"
+                "Windows non ha trovato un'applicazione associata per eseguire un'azione.\n\n"
+                "Causa comune: Manca un programma predefinito (es. un lettore PDF per i file .pdf, "
+                "o un browser per i link web).\n\n"
+                "Soluzione: Assicurati che le applicazioni necessarie siano installate e impostate come predefinite.\n\n"
+                f"Dettagli tecnici: {e}"
+            )
+            messagebox.showerror("Errore di Sistema", error_message)
         except Exception as e:
-            messagebox.showerror("Errore Critico", f"Si è verificato un errore durante l'automazione:\n{e}")
+            messagebox.showerror("Errore Critico", f"Si è verificato un errore imprevisto durante l'automazione:\n{e}")
 
     def check_thread(self, thread):
         """Controlla lo stato del thread e riabilita il pulsante se ha finito."""

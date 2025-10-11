@@ -91,12 +91,14 @@ if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
     :: Pre-create the directory to avoid race conditions with AV/system
     if not exist "%~dp0%VENV_NAME%" mkdir "%~dp0%VENV_NAME%"
     
-    "%PYTHON_EXE%" -m venv "%~dp0%VENV_NAME%"
-    if %errorlevel% neq 0 (
-        echo ERROR: Failed to create virtual environment.
+    "%PYTHON_EXE%" -m venv "%~dp0%VENV_NAME%" >nul 2>&1
+
+    :: Verify creation by checking for the activate script
+    if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
+        echo ERROR: Failed to create virtual environment. The activation script was not found.
         goto :error
     )
-    echo Virtual environment created.
+    echo Virtual environment created successfully.
 ) else (
     echo Virtual environment '%VENV_NAME%' already exists.
 )
@@ -107,6 +109,18 @@ if %errorlevel% neq 0 (
     echo ERROR: Failed to activate virtual environment.
     goto :error
 )
+echo.
+
+:: ============================================================================
+::  Upgrade core packaging tools
+:: ============================================================================
+echo Upgrading pip, setuptools, and wheel...
+python.exe -m pip install --upgrade pip setuptools wheel --no-cache-dir
+if %errorlevel% neq 0 (
+    echo ERROR: Failed to upgrade packaging tools.
+    goto :error
+)
+echo Core tools upgraded successfully.
 echo.
 
 :: ============================================================================

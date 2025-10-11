@@ -11,6 +11,35 @@ import sys # Per flushare l'output della percentuale
 import os # Per ottenere il percorso assoluto del file
 import keyboard # Per attendere input da tastiera e hotkeys
 import subprocess # Per un riavvio più robusto dello script
+import logging
+
+# --- CONFIGURAZIONE LOGGING ---
+log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+log_file = 'automazione.log'
+
+# Logger per file
+file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
+file_handler.setFormatter(log_formatter)
+file_handler.setLevel(logging.INFO)
+
+# Logger per console
+console_handler = logging.StreamHandler(sys.stdout)
+console_handler.setFormatter(log_formatter)
+console_handler.setLevel(logging.INFO)
+
+# Creazione del logger globale
+logger = logging.getLogger()
+logger.setLevel(logging.INFO)
+logger.addHandler(file_handler)
+logger.addHandler(console_handler)
+
+# Sovrascrive la funzione print per usare il logger
+def print_and_log(messaggio=""):
+    logger.info(messaggio)
+
+# Rimpiazza il print globale
+print = print_and_log
+
 
 # --- NUOVO: Import per Screenshot e OCR ---
 try:
@@ -34,6 +63,12 @@ except ImportError:
     WIN32_AVAILABLE = False
 
 # --- CONFIGURAZIONE INIZIALE (MODIFICA QUESTI VALORI!) ---
+
+# NUOVO: Flag per disabilitare la funzione di ricalcolo di Excel con pywin32,
+# che a volte può essere instabile o causare crash.
+# Impostare su True solo se si è sicuri che funzioni correttamente sul proprio sistema.
+FORZARE_RICALCOLO_EXCEL = False
+
 NOME_FILE_EXCEL_REL = r'C:\Users\Coemi\Desktop\PERFETTO\Dataease_ALLEGRETTI_02-2025.xlsm' # Esempio, modifica!
 NOME_FILE_EXCEL = os.path.abspath(NOME_FILE_EXCEL_REL)
 
@@ -461,15 +496,19 @@ def main():
     except Exception as e_hotkey_setup:
         print(f"ATTENZIONE (PID: {current_pid}): Impossibile impostare l'hotkey di riavvio '{TASTO_PER_RIAVVIARE}': {e_hotkey_setup}")
     print(f"Avvio automazione... (PID: {current_pid})")
-    if WIN32_AVAILABLE:
-        if not force_excel_recalculation(NOME_FILE_EXCEL):
-            print(f"\nERRORE CRITICO (PID: {current_pid}): Impossibile forzare il ricalcolo del file Excel.")
-            return
+    if FORZARE_RICALCOLO_EXCEL:
+        if WIN32_AVAILABLE:
+            if not force_excel_recalculation(NOME_FILE_EXCEL):
+                print(f"\nERRORE CRITICO (PID: {current_pid}): Impossibile forzare il ricalcolo del file Excel.")
+                # Decidi se uscire o continuare comunque. Per ora, usciamo.
+                return
+            else:
+                print(f"Ricalcolo forzato completato con successo. (PID: {current_pid})")
+                time.sleep(1)
         else:
-            print(f"Ricalcolo forzato completato con successo. (PID: {current_pid})")
-            time.sleep(1)
+            print(f"\nATTENZIONE (PID: {current_pid}): Il ricalcolo e' abilitato (FORZARE_RICALCOLO_EXCEL=True) ma la libreria pywin32 non e' disponibile.")
     else:
-        print(f"\nATTENZIONE (PID: {current_pid}): Impossibile forzare il ricalcolo (libreria pywin32 mancante).")
+        print("\nINFO: Il ricalcolo forzato di Excel e' disabilitato tramite flag (FORZARE_RICALCOLO_EXCEL=False).")
     print(f"\nFASE 1: Lettura parametri e buffer dati da '{os.path.basename(NOME_FILE_EXCEL)}'... (PID: {current_pid})")
     colonne_config = []
     # Associa solo le colonne con una X target. 'T' viene letta ma non ha una X, quindi non verrà inclusa qui.

@@ -16,11 +16,11 @@
     "riga_inizio": 2,
     "riga_fine": 200,
     "colonna_data_rapporto": "A",
-    "stato_da_cercare": "DA COMPLETARE"
+    "stato_da_cercare": "DA COMPLETARE",
+    "ns_riferimento": "ISAB SUD"
   },
   "mapping_colonne": {
     "colonna_ok_dati": "A",
-    "cella_cantiere_scarico_ore": "D1",
     "colonne_da_leggere": ["C", "D", "I", "J", "K", "L", "M", "N", "P", "Q", "R", "T"],
     "target_x_remoto": [55, 138, 596, 730, 795, 860, 925, 985, 1110, 1175, 1260]
   },

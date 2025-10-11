@@ -303,9 +303,8 @@ def run_automation(config):
         wb_leggi = openpyxl.load_workbook(NOME_FILE_EXCEL, data_only=True, keep_vba=True)
         sheet_parametri = wb_leggi[file_cfg['foglio_parametri']]
         sheet_dati = wb_leggi[file_cfg['foglio_dati']]
-        sheet_scarico = wb_leggi[file_cfg['foglio_scarico_ore']]
 
-        cantiere = sheet_scarico[map_cfg['cella_cantiere_scarico_ore']].value
+        cantiere = param_cfg.get('ns_riferimento', '') # Use the new config field
 
         for r in range(param_cfg['riga_inizio'], param_cfg['riga_fine'] + 1):
             cella_stato_id = f"{param_cfg['colonna_stato']}{r}"

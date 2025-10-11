@@ -170,8 +170,19 @@ if exist "%TESSERACT_EXE%" (
         goto :error
     )
 
+    :: Verify the downloaded file size is reasonable (e.g., > 1MB)
+    for %%F in ("%TESSERACT_INSTALLER%") do set "FILESIZE=%%~zF"
+    if %FILESIZE% LSS 1048576 (
+        echo ERROR: Downloaded file is too small (%FILESIZE% bytes^). It is likely corrupt or incomplete.
+        echo Deleting invalid file: %TESSERACT_INSTALLER%
+        del "%TESSERACT_INSTALLER%"
+        echo Please check your network/firewall settings and try again.
+        goto :error
+    )
+    echo Downloaded file size is %FILESIZE% bytes. Looks good.
+
     echo Running Tesseract installer silently...
-    start /wait "" "%TESSERACT_INSTALLER%" /S
+    "%TESSERACT_INSTALLER%" /S /AllUsers /D="%ProgramFiles%\Tesseract-OCR"
 
     del "%TESSERACT_INSTALLER%"
 

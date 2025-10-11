@@ -30,12 +30,7 @@
     "coordinate_apertura_nuovo_foglio": [25, 88],
     "coordinate_salvataggio_foglio": [85, 85],
     "coordinate_elimina_flag_stampa": [777, 473],
-    "coordinate_pulsante_ok": [846, 590],
-    "y_iniziale_remoto": 375,
-    "incremento_y_remoto": 19,
-    "max_righe_per_blocco_tab": 31,
-    "pressioni_tasto_tab": 362,
-    "intervallo_pressioni_tab": 0.01
+    "coordinate_pulsante_ok": [846, 590]
   },
   "procedura_odc": {
     "regione_screenshot_popup_generico": [836, 459, 252, 173],
@@ -64,6 +59,11 @@
     "coordinate_click_popup_codice_iva": [1145, 603]
   },
   "timing_e_ritardi": {
+    "y_iniziale_remoto": 375,
+    "incremento_y_remoto": 19,
+    "max_righe_per_blocco_tab": 31,
+    "pressioni_tasto_tab": 362,
+    "intervallo_pressioni_tab": 0.01,
     "pausa_dopo_blocco_tab": 3.0,
     "ritardo_movimento_mouse": 0.05,
     "ritardo_dopo_movimento": 0.2,

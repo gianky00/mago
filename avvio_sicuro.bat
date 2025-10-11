@@ -153,7 +153,7 @@ if exist "%TESSERACT_EXE%" (
     echo Tesseract not found. Attempting to download and install automatically...
 
     echo Downloading Tesseract installer from %TESSERACT_URL%...
-    powershell -Command "Invoke-WebRequest -Uri '%TESSERACT_URL%' -OutFile '%TESSERACT_INSTALLER%'"
+    powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%TESSERACT_URL%', '%TESSERACT_INSTALLER%')"
 
     if not exist "%TESSERACT_INSTALLER%" (
         echo ERROR: Failed to download Tesseract installer.

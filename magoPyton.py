@@ -114,7 +114,7 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
         return False
     try:
         pytesseract.pytesseract.tesseract_cmd = config['generali']['path_tesseract_cmd']
-        time.sleep(config['coordinate']['odc']['pausa_attesa_popup'])
+        time.sleep(config['coordinate_e_dati']['odc']['pausa_attesa_popup'])
         screenshot = pyautogui.screenshot(region=regione_screenshot)
         screenshot.save(f"debug_popup_{nome_popup_log}.png")
         testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
@@ -135,8 +135,8 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
 
 def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa):
     print("\n--- INIZIO PROCEDURA REGISTRAZIONE ODC ---")
-    odc_cfg = config['coordinate']['odc']
-    gui_cfg = config['coordinate']['gui']
+    odc_cfg = config['coordinate_e_dati']['odc']
+    gui_cfg = config['coordinate_e_dati']['gui']
     try:
         pyautogui.click(odc_cfg['coordinate_popup_tasto_no']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_barra_preferiti']); time.sleep(1.0)
@@ -195,7 +195,7 @@ def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_com
 
 def controlla_e_gestisci_popup_odc(config, valore_odc_fallito, dati_riga_completa):
     if not OCR_AVAILABLE: return False
-    odc_cfg = config['coordinate']['odc']
+    odc_cfg = config['coordinate_e_dati']['odc']
     try:
         pytesseract.pytesseract.tesseract_cmd = config['generali']['path_tesseract_cmd']
         time.sleep(odc_cfg['pausa_attesa_popup'])
@@ -272,8 +272,8 @@ def run_automation(config):
     file_cfg = config['file_e_fogli_excel']['impostazioni_file']
     param_cfg = config['file_e_fogli_excel']['mappature_colonne_foglio_avanzamento']
     col_mapping = config['file_e_fogli_excel']['mappatura_colonne_foglio_dati']
-    gui_cfg = config['coordinate']['gui']
-    odc_cfg = config['coordinate']['odc']
+    gui_cfg = config['coordinate_e_dati']['gui']
+    odc_cfg = config['coordinate_e_dati']['odc']
     timing_cfg = config['timing_e_ritardi']
     tasti_cfg = config['tasti_rapidi']
 
@@ -357,13 +357,24 @@ def run_automation(config):
             esegui_incolla_singolo_click(config, task_da_eseguire['data_rapporto'], gui_cfg['coordinate_data_rapporto'], select_all=True)
             time.sleep(timing_cfg['pausa_tra_azioni_preliminari_finali'])
 
+        if gui_cfg.get('dato_ns_riferimento'):
+            esegui_incolla_singolo_click(config, str(gui_cfg['dato_ns_riferimento']), gui_cfg['coordinate_cantiere'])
+            pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
+
         # Ciclo sui dati
         righe_processate_blocco = 0
+
+        descrizione_mapping = next((item for item in col_mapping if item["nome"] == "Descrizione Attività"), None)
+        matricola_mapping = next((item for item in col_mapping if item["nome"] == "Matricola"), None)
+
         for i, riga_obj in enumerate(task_da_eseguire['dati_buffer']):
             y_target = timing_cfg['y_iniziale_remoto'] + (righe_processate_blocco * timing_cfg['incremento_y_remoto'])
             print(f"Processando riga {i+1}/{len(task_da_eseguire['dati_buffer'])}...", end='\r'); sys.stdout.flush()
 
             for mapping_item in col_mapping:
+                if mapping_item['nome'] == "Descrizione Attività":
+                    continue
+
                 col_lettera = mapping_item['colonna_excel']
                 target_x = mapping_item['target_x_remoto']
                 val = riga_obj['dati_colonne'].get(col_lettera)
@@ -374,10 +385,9 @@ def run_automation(config):
                     if not esegui_copia_da_buffer_e_verifica(config, val_str, cella_id):
                         raise Exception(f"Errore copia GUI per {cella_id}")
 
-                    if target_x > 0: # Paste only if target_x is valid
+                    if target_x > 0:
                         esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
 
-                        # Gestione popup ODC sulla prima colonna effettivamente incollata
                         if col_lettera == col_mapping[0]['colonna_excel']:
                             if controlla_e_gestisci_popup_odc(config, val_str, riga_obj['dati_colonne']):
                                 print("  Re-inserimento dato dopo gestione popup...")
@@ -385,6 +395,16 @@ def run_automation(config):
                 else:
                      if target_x > 0:
                         pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
+
+                if matricola_mapping and mapping_item['nome'] == matricola_mapping['nome'] and descrizione_mapping:
+                    val_desc = riga_obj['dati_colonne'].get(descrizione_mapping['colonna_excel'])
+                    if val_desc is not None:
+                        val_str_desc = str(val_desc)
+                        cella_id_desc = f"{file_cfg['nome_foglio_dati']}!{descrizione_mapping['colonna_excel']}{riga_obj['riga_excel_num']}"
+                        if not esegui_copia_da_buffer_e_verifica(config, val_str_desc, cella_id_desc):
+                            raise Exception(f"Errore copia GUI per {cella_id_desc}")
+                        if descrizione_mapping['target_x_remoto'] > 0:
+                            esegui_incolla_e_tab(config, val_str_desc, (descrizione_mapping['target_x_remoto'], y_target), cella_id_desc)
 
             righe_processate_blocco += 1
             if righe_processate_blocco >= timing_cfg['max_righe_per_blocco_tab']:
@@ -405,9 +425,10 @@ def run_automation(config):
         file_salvato = False
         try:
             wb_scrivi = openpyxl.load_workbook(NOME_FILE_EXCEL, keep_vba=True)
-            sheet_dati_scrivi = wb_scrivi[file_cfg['foglio_dati']]
+            sheet_dati_scrivi = wb_scrivi[file_cfg['nome_foglio_dati']]
+            colonna_ok_dati = config.get('mapping_colonne', {}).get('colonna_ok_dati', 'A') # Fallback to 'A'
             for riga_obj in task_da_eseguire['dati_buffer']:
-                sheet_dati_scrivi[f"{map_cfg['colonna_ok_dati']}{riga_obj['riga_excel_num']}"] = "OK"
+                sheet_dati_scrivi[f"{colonna_ok_dati}{riga_obj['riga_excel_num']}"] = "OK"
 
             for _ in range(timing_cfg['tentativi_max_salvataggio_excel']):
                 try:

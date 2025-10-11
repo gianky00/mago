@@ -6,30 +6,26 @@ import keyboard
 
 class CaptureHelper:
     """A helper class to create a temporary, fullscreen, transparent window
-    for capturing mouse coordinates with a simple click."""
+    for capturing mouse coordinates without showing the main config window."""
     def __init__(self, parent, on_capture_callback):
         self.parent = parent
         self.on_capture_callback = on_capture_callback
 
         self.capture_window = tk.Toplevel(parent)
-        self.capture_window.attributes('-alpha', 0.4)  # Slightly more transparent
+        self.capture_window.attributes('-alpha', 0.5)
         self.capture_window.attributes('-fullscreen', True)
-        self.capture_window.configure(bg='grey', cursor="crosshair")  # Set a crosshair cursor
+        self.capture_window.configure(bg='grey')
 
-        # Center the label
-        label_frame = tk.Frame(self.capture_window, bg="grey")
-        label_frame.pack(expand=True)
-        label = tk.Label(label_frame, text="Muovi il mouse sulla posizione desiderata e FAI CLICK per catturare.",
-                         font=("Arial", 22, "bold"), bg="white", fg="blue", relief="solid", borderwidth=2)
-        label.pack(pady=20, padx=20)
+        label = tk.Label(self.capture_window, text="Muovi il mouse sulla posizione desiderata e premi 'Ctrl' per catturare.",
+                         font=("Arial", 18), bg="white", fg="black")
+        label.pack(pady=100)
 
-        self.parent.withdraw()  # Hide the config window to prevent it from being captured
-        self.capture_window.bind("<Button-1>", self.capture_coords) # Bind left-click
-        self.capture_window.focus_force() # Ensure the window has focus
+        self.parent.withdraw()  # Hide the config window
+        keyboard.add_hotkey('ctrl', self.capture_coords, suppress=True)
 
-    def capture_coords(self, event=None):
-        """Callback for when the user clicks."""
+    def capture_coords(self):
         x, y = pyautogui.position()
+        keyboard.remove_hotkey('ctrl')
         self.capture_window.destroy()
         self.parent.deiconify()  # Show the config window again
         self.on_capture_callback((x, y))
@@ -114,9 +110,6 @@ class ConfigWindow(tk.Toplevel):
                 widget = widget_frame
             else:
                 widget = ttk.Entry(frame, textvariable=var, width=50)
-                # Make specific fields in 'parametri_ricerca' read-only as per user request
-                if key == 'parametri_ricerca' and field in ['riga_inizio', 'riga_fine', 'stato_da_cercare']:
-                    widget.config(state='readonly')
 
             widget.grid(row=i, column=1, sticky="ew", padx=5, pady=5)
 

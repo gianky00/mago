@@ -152,17 +152,8 @@ if exist "%TESSERACT_EXE%" (
 ) else (
     echo Tesseract not found. Attempting to download and install automatically...
 
-    echo Downloading Tesseract installer from %TESSERACT_URL%...
-
-    :: Attempt to use curl first, as it is often more robust against AV/firewalls
-    where curl >nul 2>&1
-    if %errorlevel% equ 0 (
-        echo Using curl to download...
-        curl -L -o "%TESSERACT_INSTALLER%" "%TESSERACT_URL%"
-    ) else (
-        echo curl not found. Falling back to PowerShell...
-        powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; (New-Object System.Net.WebClient).DownloadFile('%TESSERACT_URL%', '%TESSERACT_INSTALLER%')"
-    )
+    echo Downloading Tesseract installer using Python...
+    python.exe download_util.py "%TESSERACT_URL%" "%TESSERACT_INSTALLER%"
 
     if not exist "%TESSERACT_INSTALLER%" (
         echo ERROR: Failed to download Tesseract installer.

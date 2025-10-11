@@ -1,8 +1,0 @@
-openpyxl
-pyautogui
-pyperclip
-keyboard
-Pillow
-pytesseract
-pywin32
-screeninfo

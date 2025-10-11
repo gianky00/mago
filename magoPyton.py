@@ -12,33 +12,48 @@ import os # Per ottenere il percorso assoluto del file
 import keyboard # Per attendere input da tastiera e hotkeys
 import subprocess # Per un riavvio più robusto dello script
 import logging
+import builtins
 
 # --- CONFIGURAZIONE LOGGING ---
+# Il logger ora scriverà solo su file. La stampa a console è gestita
+# dalla funzione print personalizzata che sostituisce 'builtins.print'.
 log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 log_file = 'automazione.log'
 
-# Logger per file
+# Configura il logger per scrivere solo su file.
 file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
 file_handler.setFormatter(log_formatter)
-file_handler.setLevel(logging.INFO)
 
-# Logger per console
-console_handler = logging.StreamHandler(sys.stdout)
-console_handler.setFormatter(log_formatter)
-console_handler.setLevel(logging.INFO)
-
-# Creazione del logger globale
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
+# Rimuovi eventuali handler pre-esistenti per evitare duplicazioni
+if logger.hasHandlers():
+    logger.handlers.clear()
 logger.addHandler(file_handler)
-logger.addHandler(console_handler)
 
-# Sovrascrive la funzione print per usare il logger
-def print_and_log(messaggio=""):
-    logger.info(messaggio)
+# Salva una referenza alla funzione print originale
+original_print = builtins.print
 
-# Rimpiazza il print globale
-print = print_and_log
+def custom_print(*args, **kwargs):
+    """
+    Una funzione print personalizzata che fa due cose:
+    1. Chiama la funzione print originale per visualizzare l'output sulla console.
+    2. Logga il messaggio su file (se non è una stringa vuota).
+    Questo approccio risolve il TypeError con argomenti come 'end' e 'flush'.
+    """
+    # Chiama la funzione print originale per mantenere il comportamento standard
+    original_print(*args, **kwargs)
+
+    # Costruisci il messaggio da loggare, gestendo il separatore
+    sep = kwargs.get('sep', ' ')
+    message = sep.join(map(str, args))
+
+    # Logga il messaggio solo se non è vuoto o composto da soli spazi
+    if message.strip():
+        logger.info(message)
+
+# Rimpiazza la funzione print globale con la nostra versione personalizzata
+builtins.print = custom_print
 
 
 # --- NUOVO: Import per Screenshot e OCR ---

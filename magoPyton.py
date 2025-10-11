@@ -296,7 +296,8 @@ def run_automation(config):
 
     print(f"\nFASE 1: Lettura dati da '{os.path.basename(NOME_FILE_EXCEL)}'...")
 
-    colonne_config = list(zip(map_cfg['colonne_da_leggere'], map_cfg['target_x_remoto']))
+    col_mapping = config.get('mapping_colonne_dettaglio', [])
+    colonne_da_leggere = [item['colonna_excel'] for item in col_mapping]
 
     task_da_eseguire = None
     try:
@@ -322,7 +323,7 @@ def run_automation(config):
 
                 dati_buffer = []
                 for r_dati in range(r_inizio, r_fine + 1):
-                    dati_riga = {col: sheet_dati[f"{col}{r_dati}"].value for col in map_cfg['colonne_da_leggere']}
+                    dati_riga = {col: sheet_dati[f"{col}{r_dati}"].value for col in colonne_da_leggere}
                     if any(dati_riga.values()):
                         dati_buffer.append({'riga_excel_num': r_dati, 'dati_colonne': dati_riga})
 
@@ -365,22 +366,28 @@ def run_automation(config):
             y_target = timing_cfg['y_iniziale_remoto'] + (righe_processate_blocco * timing_cfg['incremento_y_remoto'])
             print(f"Processando riga {i+1}/{len(task_da_eseguire['dati_buffer'])}...", end='\r'); sys.stdout.flush()
 
-            for col_lettera, target_x in colonne_config:
+            for mapping_item in col_mapping:
+                col_lettera = mapping_item['colonna_excel']
+                target_x = mapping_item['target_x_remoto']
                 val = riga_obj['dati_colonne'].get(col_lettera)
+
                 if val is not None:
                     val_str = str(val)
                     cella_id = f"{file_cfg['foglio_dati']}!{col_lettera}{riga_obj['riga_excel_num']}"
                     if not esegui_copia_da_buffer_e_verifica(config, val_str, cella_id):
                         raise Exception(f"Errore copia GUI per {cella_id}")
 
-                    esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
+                    if target_x > 0: # Paste only if target_x is valid
+                        esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
 
-                    if target_x == map_cfg['target_x_remoto'][0]: # Se è la prima colonna
-                        if controlla_e_gestisci_popup_odc(config, val_str, riga_obj['dati_colonne']):
-                            print("  Re-inserimento dato dopo gestione popup...")
-                            esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
+                        # Gestione popup ODC sulla prima colonna effettivamente incollata
+                        if col_lettera == col_mapping[0]['colonna_excel']:
+                            if controlla_e_gestisci_popup_odc(config, val_str, riga_obj['dati_colonne']):
+                                print("  Re-inserimento dato dopo gestione popup...")
+                                esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
                 else:
-                    pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
+                     if target_x > 0:
+                        pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
 
             righe_processate_blocco += 1
             if righe_processate_blocco >= timing_cfg['max_righe_per_blocco_tab']:

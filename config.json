@@ -20,10 +20,22 @@
     "ns_riferimento": "ISAB SUD"
   },
   "mapping_colonne": {
-    "colonna_ok_dati": "A",
-    "colonne_da_leggere": ["C", "D", "I", "J", "K", "L", "M", "N", "P", "Q", "R", "T"],
-    "target_x_remoto": [55, 138, 596, 730, 795, 860, 925, 985, 1110, 1175, 1260]
+    "colonna_ok_dati": "A"
   },
+  "mapping_colonne_dettaglio": [
+    { "nome": "Commessa", "colonna_excel": "C", "target_x_remoto": 55 },
+    { "nome": "Matricola", "colonna_excel": "D", "target_x_remoto": 138 },
+    { "nome": "Area", "colonna_excel": "I", "target_x_remoto": 596 },
+    { "nome": "Forfait", "colonna_excel": "J", "target_x_remoto": 730 },
+    { "nome": "Misura", "colonna_excel": "K", "target_x_remoto": 795 },
+    { "nome": "Economia", "colonna_excel": "L", "target_x_remoto": 860 },
+    { "nome": "STR 25%", "colonna_excel": "M", "target_x_remoto": 925 },
+    { "nome": "STR 50%", "colonna_excel": "N", "target_x_remoto": 985 },
+    { "nome": "FERIE/ROL", "colonna_excel": "P", "target_x_remoto": 1110 },
+    { "nome": "MALATTIA", "colonna_excel": "Q", "target_x_remoto": 1175 },
+    { "nome": "CIG-SC-PH", "colonna_excel": "R", "target_x_remoto": 1260 },
+    { "nome": "Descrizione Attività", "colonna_excel": "T", "target_x_remoto": -1 }
+  ],
   "automazione_gui": {
     "coordinate_data_rapporto": [212, 172],
     "coordinate_cantiere": [280, 300],

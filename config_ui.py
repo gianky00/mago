@@ -64,6 +64,7 @@ class ConfigWindow(tk.Toplevel):
         self.create_tab(notebook, 'procedura_odc', "Coordinate ODC")
         self.create_tab(notebook, 'timing_e_ritardi', "Timing")
         self.create_tab(notebook, 'parametri_ricerca', "Parametri Ricerca")
+        self.create_mapping_tab(notebook, 'mapping_colonne_dettaglio', "Mappatura Colonne")
 
         btn_save = ttk.Button(self, text="Salva e Chiudi", command=self.save_config)
         btn_save.pack(pady=10)
@@ -119,6 +120,54 @@ class ConfigWindow(tk.Toplevel):
 
         frame.columnconfigure(1, weight=1)
 
+    def create_mapping_tab(self, notebook, key, title):
+        tab = ttk.Frame(notebook)
+        notebook.add(tab, text=title)
+
+        canvas = tk.Canvas(tab)
+        scrollbar = ttk.Scrollbar(tab, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        self.populate_mapping_tab(scrollable_frame, key)
+
+    def populate_mapping_tab(self, parent, key):
+        frame = ttk.LabelFrame(parent, text="Mappatura Colonne Dettaglio")
+        frame.pack(padx=10, pady=10, fill="x", expand=True)
+
+        if key not in self.config_data:
+            ttk.Label(frame, text=f"Sezione '{key}' non trovata.").pack()
+            return
+
+        # Header
+        ttk.Label(frame, text="Nome Campo", font=("Arial", 10, "bold")).grid(row=0, column=0, padx=5, pady=5)
+        ttk.Label(frame, text="Colonna Excel", font=("Arial", 10, "bold")).grid(row=0, column=1, padx=5, pady=5)
+        ttk.Label(frame, text="Coordinata X", font=("Arial", 10, "bold")).grid(row=0, column=2, padx=5, pady=5)
+
+        self.vars[key] = []
+        for i, item in enumerate(self.config_data[key]):
+            row_vars = {}
+
+            # Nome (read-only)
+            ttk.Label(frame, text=item['nome']).grid(row=i + 1, column=0, sticky="w", padx=5, pady=5)
+
+            # Colonna Excel (editable)
+            var_col = tk.StringVar(value=item['colonna_excel'])
+            row_vars['colonna_excel'] = var_col
+            ttk.Entry(frame, textvariable=var_col, width=15).grid(row=i + 1, column=1, padx=5, pady=5)
+
+            # Target X (editable)
+            var_x = tk.StringVar(value=item['target_x_remoto'])
+            row_vars['target_x_remoto'] = var_x
+            ttk.Entry(frame, textvariable=var_x, width=15).grid(row=i + 1, column=2, padx=5, pady=5)
+
+            row_vars['nome'] = item['nome'] # Keep original name for saving
+            self.vars[key].append(row_vars)
+
     def browse_file(self, var_to_update):
         filepath = filedialog.askopenfilename(
             title="Seleziona un file",
@@ -137,23 +186,34 @@ class ConfigWindow(tk.Toplevel):
 
     def update_config_data(self):
         for section, fields in self.vars.items():
-            for field, var in fields.items():
-                original_value = self.config_data[section][field]
-                new_value_str = var.get()
+            if section == 'mapping_colonne_dettaglio':
+                new_mapping_data = []
+                for row_vars in fields:
+                    new_item = {
+                        'nome': row_vars['nome'],
+                        'colonna_excel': row_vars['colonna_excel'].get(),
+                        'target_x_remoto': int(row_vars['target_x_remoto'].get())
+                    }
+                    new_mapping_data.append(new_item)
+                self.config_data[section] = new_mapping_data
+            else:
+                for field, var in fields.items():
+                    original_value = self.config_data[section][field]
+                    new_value_str = var.get()
 
-                try:
-                    if isinstance(original_value, bool):
-                        self.config_data[section][field] = (new_value_str.lower() == 'true')
-                    elif isinstance(original_value, int):
-                        self.config_data[section][field] = int(new_value_str)
-                    elif isinstance(original_value, float):
-                        self.config_data[section][field] = float(new_value_str)
-                    elif isinstance(original_value, list):
-                        self.config_data[section][field] = json.loads(new_value_str.replace("'", '"'))
-                    else:
+                    try:
+                        if isinstance(original_value, bool):
+                            self.config_data[section][field] = (new_value_str.lower() == 'true')
+                        elif isinstance(original_value, int):
+                            self.config_data[section][field] = int(new_value_str)
+                        elif isinstance(original_value, float):
+                            self.config_data[section][field] = float(new_value_str)
+                        elif isinstance(original_value, list):
+                            self.config_data[section][field] = json.loads(new_value_str.replace("'", '"'))
+                        else:
+                            self.config_data[section][field] = new_value_str
+                    except (ValueError, json.JSONDecodeError):
                         self.config_data[section][field] = new_value_str
-                except (ValueError, json.JSONDecodeError):
-                    self.config_data[section][field] = new_value_str
 
     def save_config(self):
         self.update_config_data()

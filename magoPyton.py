@@ -74,8 +74,6 @@ def restart_script(config):
     except Exception:
         pass
     python_executable = sys.executable
-    # Assumendo che il nuovo entry point sarà 'gui.py' o simile.
-    # Per ora, riavvia se stesso. Questo andrà aggiornato.
     script_to_run = os.path.abspath(sys.argv[0])
     subprocess.Popen([python_executable, script_to_run] + sys.argv[1:])
     sys.exit(0)
@@ -310,8 +308,14 @@ def run_automation(config):
         cantiere = sheet_scarico[map_cfg['cella_cantiere_scarico_ore']].value
 
         for r in range(param_cfg['riga_inizio'], param_cfg['riga_fine'] + 1):
-            stato = sheet_parametri[f"{param_cfg['colonna_stato']}{r}"].value
-            if stato and str(stato).strip().upper() == param_cfg['stato_da_cercare'].upper():
+            cella_stato_id = f"{param_cfg['colonna_stato']}{r}"
+            stato_raw = sheet_parametri[cella_stato_id].value
+
+            stato_pulito = str(stato_raw).strip().upper() if stato_raw is not None else ""
+            stato_da_cercare_pulito = param_cfg['stato_da_cercare'].strip().upper()
+
+            if stato_pulito == stato_da_cercare_pulito:
+                print(f"  --> TASK TROVATO ALLA RIGA {r}!")
                 r_inizio = sheet_parametri[f"{param_cfg['colonna_riga_inizio']}{r}"].value
                 r_fine = sheet_parametri[f"{param_cfg['colonna_riga_fine']}{r}"].value
                 data_raw = sheet_parametri[f"{param_cfg['colonna_data_rapporto']}{r}"].value
@@ -432,20 +436,6 @@ def run_automation(config):
     except KeyboardInterrupt:
         print("\nScript terminato.")
 
+# This block is intentionally left empty so this file can be used as a library
 if __name__ == "__main__":
-    config = load_config()
-    if config:
-        try:
-            run_automation(config)
-        except KeyboardInterrupt:
-            print("\n--- Script interrotto dall'utente (Ctrl+C) ---")
-        except Exception as e:
-            print(f"\n--- ERRORE GLOBALE NON GESTITO ---")
-            traceback.print_exc()
-        finally:
-            print("\nPulizia finale hotkeys...")
-            try:
-                keyboard.remove_all_hotkeys()
-            except Exception:
-                pass
-            print("--- Fine esecuzione ---")
+    pass

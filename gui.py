@@ -3,7 +3,6 @@ from tkinter import messagebox
 from config_ui import ConfigWindow
 import json
 import threading
-# Importa le funzioni necessarie da magoPyton
 import magoPyton as mpy
 
 class App:
@@ -27,10 +26,9 @@ class App:
         self.btn_run.config(state="disabled", text="Automazione in corso...")
 
         automation_thread = threading.Thread(target=self.execute_automation)
-        automation_thread.daemon = True  # Il thread si chiude se la GUI viene chiusa
+        automation_thread.daemon = True
         automation_thread.start()
 
-        # Controlla periodicamente se il thread è ancora vivo
         self.root.after(100, self.check_thread, automation_thread)
 
     def execute_automation(self):
@@ -41,7 +39,6 @@ class App:
                 messagebox.showerror("Errore", "Impossibile caricare la configurazione. Eseguire prima la configurazione.")
                 return
 
-            # Esegui la logica principale
             mpy.run_automation(config)
 
             messagebox.showinfo("Completato", "Automazione terminata con successo!")
@@ -54,7 +51,6 @@ class App:
         if not thread.is_alive():
             self.btn_run.config(state="normal", text="Avvia Automazione")
         else:
-            # Riprogramma il controllo
             self.root.after(100, self.check_thread, thread)
 
 if __name__ == "__main__":

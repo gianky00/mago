@@ -24,21 +24,6 @@ Per installare e configurare il progetto, segui questi passaggi:
         *   Installerà tutte le dipendenze richieste dal file `requirements.txt`.
         *   Avvierà l'applicazione principale.
 
-## Configurazione
-
-### Configurazione delle Coordinate
-
-Le coordinate per l'automazione della GUI sono hardcoded nel file `magoPyton.py` e devono essere configurate manualmente per ogni nuova macchina.
-
-Per trovare le coordinate corrette, puoi usare lo script `catturaPosizioneMouse.py`. Eseguilo e sposta il mouse sulle posizioni desiderate per ottenere le coordinate X e Y, quindi aggiorna i valori in `magoPyton.py`.
-
-### Ricalcolo di Excel
-
-La funzione per forzare il ricalcolo di Excel può essere instabile su alcuni sistemi. Per impostazione predefinita, è disabilitata.
-
-*   Per abilitarla, imposta la variabile `FORZARE_RICALCOLO_EXCEL` su `True` nel file `magoPyton.py`.
-*   Per disabilitarla (impostazione predefinita), lasciala su `False`.
-
 ## Utilizzo
 
 Dopo aver completato l'installazione e la configurazione, esegui lo script `avvio_sicuro.bat` come amministratore per avviare l'automazione. Lo script gestirà tutte le dipendenze e avvierà l'applicazione.

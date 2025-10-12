@@ -28,7 +28,6 @@ if '%errorlevel%' NEQ '0' (
 ::  Configuration
 :: ============================================================================
 set "VENV_NAME=venv"
-set "PYTHON_SCRIPT=gui.py"
 set "REQUIREMENTS_FILE=requirements.txt"
 
 :: ============================================================================
@@ -88,14 +87,12 @@ echo.
 if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
     echo Creating virtual environment '%VENV_NAME%'...
     
-    :: Pre-create the directory to avoid race conditions with AV/system
     if not exist "%~dp0%VENV_NAME%" mkdir "%~dp0%VENV_NAME%"
     
     "%PYTHON_EXE%" -m venv "%~dp0%VENV_NAME%" >nul 2>&1
 
-    :: Verify creation by checking for the activate script
     if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
-        echo ERROR: Failed to create virtual environment. The activation script was not found.
+        echo ERROR: Failed to create virtual environment.
         goto :error
     )
     echo Virtual environment created successfully.
@@ -149,27 +146,17 @@ if not exist "%TESSERACT_PATH%" (
     echo.
 )
 
-:: ============================================================================
-::  Run the main Python script
-:: ============================================================================
-echo Starting the script '%PYTHON_SCRIPT%'...
 echo.
-python.exe "%PYTHON_SCRIPT%"
-if %errorlevel% neq 0 (
-    echo ERROR: The Python script exited with an error.
-    goto :error
-)
-
-echo.
-echo The script ran successfully.
+echo Setup completed successfully.
 goto :end
 
 :error
 echo.
-echo An error occurred. The window will remain open for analysis.
+echo An error occurred during setup. The window will remain open for analysis.
 pause
 
 :end
 echo.
+echo You can now run avvio.bat to start the application.
 echo Press any key to close the window.
 pause

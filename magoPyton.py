@@ -259,7 +259,6 @@ def esegui_incolla_e_tab(config, valore_incollato_str, target_coords, cella_exce
 # --- FUNZIONE PRINCIPALE DI AUTOMAZIONE ---
 def run_automation(config):
     # Setup delle variabili dalla nuova configurazione
-    gen_cfg = config['generali']
     file_cfg = config['file_e_fogli_excel']['impostazioni_file']
     param_cfg = config['file_e_fogli_excel']['mappature_colonne_foglio_avanzamento']
     col_mapping = config['file_e_fogli_excel']['mappatura_colonne_foglio_dati']

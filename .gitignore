@@ -16,3 +16,6 @@ venv/
 # PyArmor files
 pyarmor.bug.log
 pyarmor_runtime_000000/
+
+# License Generator files
+saved_licenses.json

@@ -1,72 +1,70 @@
-# Guida alla Distribuzione e Licenziamento
+# Guida alla Distribuzione e Licenziamento (Metodo Semplificato)
 
-Questo documento spiega il processo per creare pacchetti licenziati dell'applicazione e come distribuirli agli utenti finali.
-
----
-
-## Sezione 1: Per l'Amministratore (Tu)
-
-Questa sezione descrive come generare un pacchetto software protetto e licenziato per un collega.
-
-### Prerequisiti
-
-1.  Assicurati di avere l'ambiente di sviluppo configurato (Python e le dipendenze da `requirements.txt` installate).
-2.  Il tuo collega deve averti fornito il suo **ID Hardware**.
-
-### Come Generare un Pacchetto Licenziato
-
-1.  **Avvia il Generatore di Licenze**:
-    Esegui lo script `license_generator.py` dalla cartella principale del progetto:
-    ```bash
-    python license_generator.py
-    ```
-
-2.  **Compila i Campi**:
-    *   **ID Hardware**: Incolla il codice identificativo che ti ha fornito il tuo collega.
-    *   **Data Scadenza**: Imposta la data di scadenza della licenza nel formato `YYYY-MM-DD`.
-
-3.  **Genera il Pacchetto**:
-    *   Clicca su **"Genera Pacchetto Licenziato"**.
-    *   Ti verrà chiesto di scegliere una **cartella di destinazione**. È qui che verrà salvato il pacchetto pronto per la distribuzione. Scegli una cartella vuota o creane una nuova (es. `distribuzione_mario_rossi`).
-
-4.  **Prepara lo ZIP**:
-    *   Al termine del processo, la cartella di destinazione conterrà gli script Python offuscati (`.py`) e una cartella `pyarmor_runtime_000000`.
-    *   **Copia i file ausiliari necessari** nella stessa cartella. Questi file **non** vengono inclusi automaticamente e sono essenziali per il funzionamento del programma:
-        *   `config.json`
-        *   `tooltips.json`
-        *   `Dataease_ALLEGRETTI_02-2025.xlsm` (o il file di dati corrente)
-        *   `avvio.bat`
-        *   La cartella `file di setup/` se contiene elementi necessari all'avvio.
-    *   Comprimi l'intera cartella di destinazione in un unico file `.zip`.
-
-5.  **Distribuisci**:
-    *   Invia il file `.zip` al tuo collega.
+Questo documento spiega il processo per creare e distribuire pacchetti software licenziati, con un flusso di lavoro semplificato sia per l'amministratore che per l'utente finale.
 
 ---
 
-## Sezione 2: Per l'Utente Finale (I tuoi Colleghi)
+## Flusso di Lavoro Generale
 
-Questa sezione contiene le istruzioni da fornire ai tuoi colleghi.
+Il processo si divide in 3 semplici macro-fasi:
 
-### A. Come Trovare il tuo ID Hardware
+1.  **Tu (Amministratore):** Crei una piccola utility per ottenere l'ID Hardware e la invii al collega.
+2.  **Il tuo Collega (Utente):** Esegue l'utility, copia l'ID e te lo invia.
+3.  **Tu (Amministratore):** Salvi l'ID, lo associ a un nome e generi il pacchetto software finale e licenziato da inviare al collega.
 
-Per poterti generare una licenza, ho bisogno del codice identificativo del tuo PC.
+---
 
-1.  Apri un **Prompt dei Comandi (cmd)**.
-2.  Esegui questo comando:
-    ```bash
-    pyarmor-7 hdinfo
-    ```
-    *(Nota: Se non hai `pyarmor-7` installato, puoi semplicemente installarlo con `pip install pyarmor`)*
-3.  Copia l'output che ti viene mostrato (è una lunga stringa di testo) e inviamelo.
+## Sezione 1: Istruzioni per l'Amministratore (Tu)
 
-### B. Come Installare e Avviare l'Applicazione
+Usa lo strumento `license_generator.py` per gestire tutto. Avvialo con:
+```bash
+python license_generator.py
+```
 
-Una volta che ricevi il file `.zip`:
+### FASE A: Ottenere l'ID Hardware dal Collega
 
-1.  **Scompatta lo ZIP**: Estrai tutto il contenuto del file `.zip` in una cartella sul tuo computer (es. sul Desktop).
-2.  **Avvia l'Applicazione**:
-    *   Entra nella cartella appena creata.
-    *   Fai doppio clic sul file `avvio.bat` per lanciare il programma.
+1.  Nel generatore, clicca il pulsante **"Crea Utility Info Hardware..."**.
+2.  Ti verrà chiesto dove salvare un file `.zip`. Salvalo con un nome chiaro (es. `utility-info-hardware.zip`).
+3.  Invia questo file `.zip` al tuo collega, insieme alle istruzioni che trovi nella "Sezione 2" di questo README.
 
-Non tentare di copiare i file su un altro computer, perché la licenza è legata specificamente a questo PC e non funzionerebbe altrove.
+### FASE B: Salvare la Licenza e Generare il Pacchetto Finale
+
+1.  Una volta che il collega ti ha inviato il suo ID Hardware:
+    *   Nel generatore, vai alla **FASE 2**.
+    *   **ID Licenza**: Inserisci un nome descrittivo per questa licenza (es. "PC Fisso Mario Rossi", "Laptop Sede Milano").
+    *   **ID Hardware**: Incolla il codice ricevuto dal collega.
+    *   Clicca su **"Salva Licenza"**. La licenza verrà salvata e sarà disponibile nel menu a tendina per usi futuri.
+
+2.  Per creare il software da inviare al collega:
+    *   Vai alla **FASE 3**.
+    *   **Seleziona Licenza Salvata**: Scegli dal menu a tendina la licenza che hai appena salvato.
+    *   **Data Scadenza**: Imposta la data di scadenza desiderata.
+    *   Clicca su **"Genera Pacchetto Finale..."**.
+    *   Scegli una cartella vuota dove salvare il pacchetto completo.
+
+3.  Al termine, la cartella di destinazione conterrà **tutto il necessario**. Comprimila in un file `.zip` e inviala al tuo collega.
+
+---
+
+## Sezione 2: Istruzioni per l'Utente Finale (I tuoi Colleghi)
+
+*Queste sono le istruzioni da inviare ai tuoi colleghi.*
+
+### Parte 1: Trovare il tuo ID Hardware
+
+Per poterti fornire una licenza software, ho bisogno di un codice identificativo del tuo PC.
+
+1.  Riceverai da me un file `.zip` (es. `utility-info-hardware.zip`).
+2.  Scompatta il file in una cartella qualsiasi.
+3.  Entra nella cartella e fai doppio clic su **`AVVIA_PER_ID_HARDWARE.bat`**.
+4.  Apparirà una finestra con il tuo ID Hardware.
+5.  Clicca sul pulsante **"Copia ID"** e inviami via email o chat il codice che hai appena copiato.
+
+### Parte 2: Installare l'Applicazione Finale
+
+Una volta che mi avrai inviato l'ID, ti manderò un nuovo file `.zip` con il programma completo.
+
+1.  Scompatta questo secondo file `.zip` in una cartella permanente sul tuo computer (es. sul Desktop o in `Documenti`).
+2.  Entra nella cartella e fai doppio clic su **`avvio.bat`** per lanciare il programma.
+
+Il software è legato a questo specifico PC e non funzionerà se copiato altrove.

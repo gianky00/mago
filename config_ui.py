@@ -169,18 +169,24 @@ class ConfigFrame(ttk.Frame):
 
         try:
             data_section = self.get_nested_data(keys)
-            tooltip_section = self.get_nested_data(keys, data_source=self.tooltips_data)
+            tooltip_section = self.get_nested_data(keys, data_source=self.tooltips_data) if self.tooltips_data else {}
         except KeyError:
             ttk.Label(frame, text=f"Sezione non trovata.").pack()
             return
 
+        critical_params = ["ritardo_click_singolo", "ritardo_prima_incolla", "ritardo_dopo_select_all", "ritardo_dopo_copia_excel"]
+
         self.vars[keys] = {}
         for i, (field, value) in enumerate(data_section.items()):
-            # Label Frame per contenere label e tooltip
             label_frame = ttk.Frame(frame)
             label_frame.grid(row=i, column=0, sticky="w", padx=5, pady=5)
 
-            ttk.Label(label_frame, text=f"{field}:").pack(side="left")
+            is_critical = field in critical_params
+            label_text = f" * {field}:" if is_critical else f"{field}:"
+            label_color = "darkred" if is_critical else "black"
+            label_font = ("Arial", 9, "bold") if is_critical else ("Arial", 9)
+
+            ttk.Label(label_frame, text=label_text, foreground=label_color, font=label_font).pack(side="left")
 
             tooltip_text = tooltip_section.get(field, "Nessun aiuto disponibile.")
             if self.tooltips_data:

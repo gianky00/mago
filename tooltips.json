@@ -1,8 +1,4 @@
 {
-  "generali": {
-    "forzare_ricalcolo_excel": "Se 'True', forza il ricalcolo completo di tutte le formule nel file Excel all'avvio. Utile se i dati non sembrano aggiornati. Richiede Excel installato.",
-    "path_tesseract_cmd": "Percorso completo dell'eseguibile di Tesseract OCR (tesseract.exe). Necessario per il riconoscimento di testo nei popup."
-  },
   "file_e_fogli_excel": {
     "impostazioni_file": {
       "percorso_file_excel": "Percorso completo del file Excel che contiene i dati e i parametri dell'automazione.",

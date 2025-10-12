@@ -1,0 +1,18 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Distribution / build directories
+dist/
+build/
+*.egg-info/
+
+# Virtual environment
+venv/
+.venv/
+
+# PyArmor files
+pyarmor.bug.log
+pyarmor_runtime_000000/

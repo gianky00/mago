@@ -2,6 +2,8 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
 import pyautogui
+import os
+import glob
 
 class ToolTip:
     """
@@ -145,14 +147,18 @@ class ConfigFrame(ttk.Frame):
         main_notebook = ttk.Notebook(main_frame)
         main_notebook.pack(pady=10, padx=10, expand=True, fill="both")
 
-        # --- Main Tab 1: File e Fogli Excel ---
-        excel_tab = ttk.Frame(main_notebook)
-        main_notebook.add(excel_tab, text="File e Fogli Excel")
-        excel_notebook = ttk.Notebook(excel_tab)
+        # --- Main Tab 1: Impostazioni File ---
+        file_settings_tab = ttk.Frame(main_notebook)
+        main_notebook.add(file_settings_tab, text="Impostazioni File")
+        self.create_generic_tab(file_settings_tab, ("impostazioni_file",), "Impostazioni File")
+
+        # --- Main Tab 2: Mappature Excel ---
+        excel_maps_tab = ttk.Frame(main_notebook)
+        main_notebook.add(excel_maps_tab, text="Mappature Excel")
+        excel_notebook = ttk.Notebook(excel_maps_tab)
         excel_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
-        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Mappature Colonne Foglio Avanzamento")
+        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Mappature Foglio Avanzamento")
         self.create_mapping_tab(excel_notebook, ("file_e_fogli_excel", "mappatura_colonne_foglio_dati"), "Mappatura Colonne Foglio Dati")
 
         # --- Main Tab 2: Coordinate e Dati ---
@@ -251,12 +257,18 @@ class ConfigFrame(ttk.Frame):
 
             if isinstance(value, bool):
                 widget = ttk.Combobox(frame, textvariable=var, values=["True", "False"], state="readonly")
-            elif "percorso" in field:
+            elif "percorso" in field or "path" in field:
                 widget_frame = ttk.Frame(frame)
                 entry = ttk.Entry(widget_frame, textvariable=var, width=60)
                 entry.pack(side="left", fill="x", expand=True)
-                btn = ttk.Button(widget_frame, text="Sfoglia...", command=lambda v=var: self.browse_file(v))
-                btn.pack(side="left", padx=5)
+
+                if "tesseract" in field:
+                    btn_auto = ttk.Button(widget_frame, text="Trova...", command=lambda v=var: self.auto_detect_tesseract(v))
+                    btn_auto.pack(side="left", padx=(0, 5))
+
+                btn_browse = ttk.Button(widget_frame, text="Sfoglia...", command=lambda v=var: self.browse_file(v))
+                btn_browse.pack(side="left")
+
                 widget = widget_frame
             else:
                 widget = ttk.Entry(frame, textvariable=var, width=50)
@@ -350,6 +362,34 @@ class ConfigFrame(ttk.Frame):
             self.winfo_toplevel().focus_force()
             self.winfo_toplevel().lift()
         CaptureHelper(self, on_capture)
+
+    def find_tesseract_executable(self):
+        """Cerca tesseract.exe in percorsi comuni e restituisce il percorso completo."""
+        search_paths = [
+            os.path.join(os.environ.get("ProgramFiles", "C:\\Program Files"), "Tesseract-OCR"),
+            os.path.join(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)"), "Tesseract-OCR"),
+            os.path.join(os.environ.get("LOCALAPPDATA", ""), "Tesseract-OCR")
+        ]
+
+        for path in search_paths:
+            if not os.path.isdir(path):
+                continue
+
+            # Cerca ricorsivamente tesseract.exe
+            found_files = glob.glob(os.path.join(path, "**", "tesseract.exe"), recursive=True)
+            if found_files:
+                return found_files[0]
+
+        return None
+
+    def auto_detect_tesseract(self, var_to_update):
+        """Funzione per avviare la ricerca e aggiornare il campo di testo."""
+        tesseract_path = self.find_tesseract_executable()
+        if tesseract_path:
+            var_to_update.set(tesseract_path)
+            messagebox.showinfo("Successo", f"Tesseract trovato in:\n{tesseract_path}", parent=self)
+        else:
+            messagebox.showwarning("Fallito", "Impossibile trovare 'tesseract.exe'.\nAssicurati che sia installato in un percorso standard.", parent=self)
 
     def update_config_data(self):
         for keys, section_vars in self.vars.items():

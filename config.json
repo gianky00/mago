@@ -1,14 +1,12 @@
 {
-  "generali": {
+  "impostazioni_file": {
+    "percorso_file_excel": "C:\\Users\\Coemi\\Desktop\\PERFETTO\\Dataease_ALLEGRETTI_02-2025.xlsm",
+    "nome_foglio_dati": "DataEasePyton",
+    "nome_foglio_avanzamento": "ParametriPyton",
     "forzare_ricalcolo_excel": false,
     "path_tesseract_cmd": "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
   },
   "file_e_fogli_excel": {
-    "impostazioni_file": {
-      "percorso_file_excel": "C:\\Users\\Coemi\\Desktop\\PERFETTO\\Dataease_ALLEGRETTI_02-2025.xlsm",
-      "nome_foglio_dati": "DataEasePyton",
-      "nome_foglio_avanzamento": "ParametriPyton"
-    },
     "mappature_colonne_foglio_avanzamento": {
       "colonna_stato": "D",
       "colonna_riga_inizio": "B",
@@ -99,5 +97,6 @@
   "tasti_rapidi": {
     "prosegui": "k",
     "riavvia": "n"
-  }
+  },
+  "generali": {}
 }

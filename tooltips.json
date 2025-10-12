@@ -1,14 +1,12 @@
 {
-  "generali": {
+  "impostazioni_file": {
+    "percorso_file_excel": "Percorso completo del file Excel che contiene i dati e i parametri dell'automazione.",
+    "nome_foglio_dati": "Nome del foglio di lavoro Excel contenente i dati da elaborare (es. 'DataEasePyton').",
+    "nome_foglio_avanzamento": "Nome del foglio di lavoro Excel che contiene i parametri di controllo del processo (es. 'ParametriPyton').",
     "forzare_ricalcolo_excel": "Se 'True', forza il ricalcolo completo di tutte le formule nel file Excel all'avvio. Utile se i dati non sembrano aggiornati. Richiede Excel installato.",
     "path_tesseract_cmd": "Percorso completo dell'eseguibile di Tesseract OCR (tesseract.exe). Necessario per il riconoscimento di testo nei popup."
   },
   "file_e_fogli_excel": {
-    "impostazioni_file": {
-      "percorso_file_excel": "Percorso completo del file Excel che contiene i dati e i parametri dell'automazione.",
-      "nome_foglio_dati": "Nome del foglio di lavoro Excel contenente i dati da elaborare (es. 'DataEasePyton').",
-      "nome_foglio_avanzamento": "Nome del foglio di lavoro Excel che contiene i parametri di controllo del processo (es. 'ParametriPyton')."
-    },
     "mappature_colonne_foglio_avanzamento": {
       "colonna_stato": "Lettera della colonna nel foglio 'Avanzamento' che indica lo stato del task (es. 'D' per 'DA COMPLETARE').",
       "colonna_riga_inizio": "Lettera della colonna nel foglio 'Avanzamento' che indica la riga di partenza dei dati da leggere nel foglio 'Dati'.",
@@ -86,5 +84,6 @@
   "tasti_rapidi": {
     "prosegui": "Tasto da premere per confermare che l'inserimento dati è terminato e si può procedere al salvataggio.",
     "riavvia": "Tasto da premere in qualsiasi momento per interrompere e riavviare l'automazione dall'inizio."
-  }
+  },
+  "generali": {}
 }

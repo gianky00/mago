@@ -1,0 +1,90 @@
+{
+  "generali": {
+    "forzare_ricalcolo_excel": "Se 'True', forza il ricalcolo completo di tutte le formule nel file Excel all'avvio. Utile se i dati non sembrano aggiornati. Richiede Excel installato.",
+    "path_tesseract_cmd": "Percorso completo dell'eseguibile di Tesseract OCR (tesseract.exe). Necessario per il riconoscimento di testo nei popup."
+  },
+  "file_e_fogli_excel": {
+    "impostazioni_file": {
+      "percorso_file_excel": "Percorso completo del file Excel che contiene i dati e i parametri dell'automazione.",
+      "nome_foglio_dati": "Nome del foglio di lavoro Excel contenente i dati da elaborare (es. 'DataEasePyton').",
+      "nome_foglio_avanzamento": "Nome del foglio di lavoro Excel che contiene i parametri di controllo del processo (es. 'ParametriPyton')."
+    },
+    "mappature_colonne_foglio_avanzamento": {
+      "colonna_stato": "Lettera della colonna nel foglio 'Avanzamento' che indica lo stato del task (es. 'D' per 'DA COMPLETARE').",
+      "colonna_riga_inizio": "Lettera della colonna nel foglio 'Avanzamento' che indica la riga di partenza dei dati da leggere nel foglio 'Dati'.",
+      "colonna_riga_fine": "Lettera della colonna nel foglio 'Avanzamento' che indica la riga di fine dei dati da leggere nel foglio 'Dati'.",
+      "colonna_data_rapporto": "Lettera della colonna nel foglio 'Avanzamento' che contiene la data da inserire nel rapportino."
+    },
+    "mappatura_colonne_foglio_dati": "Mappatura tra i nomi dei campi, le colonne nel foglio 'Dati' e la coordinata X di destinazione nell'applicazione remota. Non modificare direttamente qui, la struttura è fissa."
+  },
+  "coordinate_e_dati": {
+    "gui": {
+      "coordinate_data_rapporto": "Coordinate (X, Y) del campo 'Data Rapporto' nell'applicazione remota.",
+      "coordinate_cantiere": "Coordinate (X, Y) del campo 'Cantiere' o 'Ns. Riferimento' nell'applicazione remota.",
+      "dato_ns_riferimento": "Valore di testo fisso da inserire nel campo 'Ns. Riferimento' (es. 'ISAB SUD').",
+      "coordinate_apertura_nuovo_foglio": "Coordinate (X, Y) del pulsante o menu per creare un nuovo foglio/rapportino.",
+      "coordinate_salvataggio_foglio": "Coordinate (X, Y) del pulsante o menu per salvare il foglio/rapportino.",
+      "coordinate_elimina_flag_stampa": "Coordinate (X, Y) della casella di controllo per disabilitare la stampa.",
+      "coordinate_pulsante_ok": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' finale."
+    },
+    "odc": {
+      "regione_screenshot_popup_generico": "Regione (X, Y, Larghezza, Altezza) dello schermo dove appare il popup 'ODC non trovato'.",
+      "testo_da_cercare_popup_generico": "Testo da cercare con OCR all'interno del popup per confermarne la presenza (es. 'non trovato').",
+      "pausa_attesa_popup": "Secondi di attesa prima di effettuare lo screenshot del popup, per dare tempo alla finestra di apparire.",
+      "coordinate_popup_tasto_no": "Coordinate (X, Y) del pulsante 'No' sul popup che chiede di creare un nuovo ODC.",
+      "coordinate_barra_preferiti": "Coordinate (X, Y) per cliccare sulla barra dei preferiti nell'applicazione remota.",
+      "coordinate_commesse_variante": "Coordinate (X, Y) per selezionare 'Commesse in Variante' o simile.",
+      "coordinate_casella_commessa": "Coordinate (X, Y) del campo 'Commessa' nella finestra di creazione ODC.",
+      "coordinate_casella_descrizione": "Coordinate (X, Y) del campo 'Descrizione' nella finestra di creazione ODC.",
+      "coordinate_casella_commessa_padre": "Coordinate (X, Y) del campo 'Commessa Padre' nella finestra di creazione ODC.",
+      "coordinate_casella_ns_rif": "Coordinate (X, Y) del campo 'Ns. Rif.' nella finestra di creazione ODC.",
+      "coordinate_apri_elenco_gruppo": "Coordinate (X, Y) del pulsante per aprire l'elenco dei gruppi.",
+      "coordinate_casella_gruppo_generico": "Coordinate (X, Y) per selezionare il gruppo generico dall'elenco.",
+      "coordinate_casella_resp_commessa": "Coordinate (X, Y) del campo 'Responsabile Commessa'.",
+      "coordinate_casella_resp_cantiere": "Coordinate (X, Y) del campo 'Responsabile Cantiere'.",
+      "coordinate_barra_causali_depositi": "Coordinate (X, Y) per accedere alla sezione 'Causali/Depositi'.",
+      "coordinate_apri_elenco_deposito": "Coordinate (X, Y) del pulsante per aprire l'elenco dei depositi.",
+      "coordinate_casella_deposito": "Coordinate (X, Y) per selezionare il deposito dall'elenco.",
+      "coordinate_chiudi_rapportino_commessa": "Coordinate (X, Y) del pulsante per chiudere la finestra di creazione ODC.",
+      "regione_popup_attenzione_sal": "Regione (X, Y, Larghezza, Altezza) del popup 'Attenzione SAL'.",
+      "testo_popup_attenzione_sal": "Testo da cercare con OCR nel popup 'Attenzione SAL'.",
+      "coordinate_click_popup_attenzione_sal": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup 'Attenzione SAL'.",
+      "regione_popup_codice_iva": "Regione (X, Y, Larghezza, Altezza) del popup relativo al codice IVA.",
+      "testo_popup_codice_iva": "Testo da cercare con OCR nel popup del codice IVA.",
+      "coordinate_click_popup_codice_iva": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup del codice IVA."
+    }
+  },
+  "timing_e_ritardi": {
+    "y_iniziale_remoto": "Coordinata Y di partenza per la prima riga da compilare nell'applicazione remota.",
+    "incremento_y_remoto": "Numero di pixel da aggiungere alla coordinata Y per passare alla riga successiva.",
+    "max_righe_per_blocco_tab": "Numero massimo di righe da compilare prima di eseguire una serie di 'Tab' per spostarsi al blocco successivo.",
+    "pressioni_tasto_tab": "Numero di volte che il tasto 'Tab' viene premuto per navigare tra i blocchi.",
+    "intervallo_pressioni_tab": "Intervallo in secondi tra una pressione e l'altra del tasto 'Tab'.",
+    "pausa_dopo_blocco_tab": "Secondi di pausa dopo aver navigato a un nuovo blocco di righe.",
+    "ritardo_movimento_mouse": "Durata in secondi del movimento del mouse verso una coordinata.",
+    "ritardo_dopo_movimento": "Secondi di pausa dopo che il mouse ha raggiunto la destinazione.",
+    "ritardo_click_singolo": "Secondi di pausa dopo un click del mouse.",
+    "ritardo_prima_incolla": "Secondi di pausa prima di eseguire un'operazione di 'incolla' (Ctrl+V).",
+    "ritardo_dopo_copia_excel": "Secondi di pausa dopo aver copiato un valore da Excel.",
+    "tentativi_max_copia_excel": "Numero massimo di tentativi per copiare un valore dagli appunti se la verifica fallisce.",
+    "ritardo_tra_tentativi_copia": "Secondi di pausa tra un tentativo di copia e il successivo.",
+    "ritardo_prima_copia_finale": "Breve pausa prima di copiare un valore negli appunti subito prima di incollarlo.",
+    "ritardo_prima_copia_verifica": "Breve pausa prima di copiare un valore negli appunti per la verifica.",
+    "pausa_prima_salvataggio_openpyxl": "Secondi di attesa prima di tentare di salvare il file Excel con openpyxl.",
+    "pausa_tra_azioni_preliminari_finali": "Secondi di pausa tra le azioni principali (es. inserimento data, salvataggio).",
+    "ritardo_dopo_select_all": "Secondi di pausa dopo aver selezionato tutto il testo in un campo (Ctrl+A).",
+    "ritardo_dopo_tab": "Secondi di pausa dopo aver premuto il tasto 'Tab'.",
+    "tentativi_max_salvataggio_excel": "Numero massimo di tentativi per salvare il file Excel in caso di errore (es. file bloccato).",
+    "ritardo_tra_tentativi_salvataggio": "Secondi di attesa tra un tentativo di salvataggio e il successivo."
+  },
+  "pulizia_appunti": {
+    "pausa_1": "Prima pausa nel ciclo di pulizia degli appunti.",
+    "pausa_2": "Seconda pausa nel ciclo di pulizia degli appunti.",
+    "pausa_3": "Terza pausa nel ciclo di pulizia degli appunti.",
+    "riconferma_copia_pausa": "Breve pausa aggiuntiva dopo una copia riuscita per garantirne la stabilità."
+  },
+  "tasti_rapidi": {
+    "prosegui": "Tasto da premere per confermare che l'inserimento dati è terminato e si può procedere al salvataggio.",
+    "riavvia": "Tasto da premere in qualsiasi momento per interrompere e riavviare l'automazione dall'inizio."
+  }
+}

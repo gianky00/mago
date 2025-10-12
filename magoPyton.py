@@ -14,25 +14,16 @@ import builtins
 import json
 
 # --- CONFIGURAZIONE LOGGING ---
+# Configura il logger per scrivere su 'automazione.log'.
+# La funzione print() standard verrà usata per l'output nella GUI.
 log_formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 log_file = 'automazione.log'
 file_handler = logging.FileHandler(log_file, mode='a', encoding='utf-8')
 file_handler.setFormatter(log_formatter)
-logger = logging.getLogger()
+logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
-if logger.hasHandlers():
-    logger.handlers.clear()
-logger.addHandler(file_handler)
-original_print = builtins.print
-
-def custom_print(*args, **kwargs):
-    original_print(*args, **kwargs)
-    sep = kwargs.get('sep', ' ')
-    message = sep.join(map(str, args))
-    if message.strip():
-        logger.info(message)
-
-builtins.print = custom_print
+if not logger.hasHandlers():
+    logger.addHandler(file_handler)
 
 # --- LIBRERIE OPZIONALI ---
 try:

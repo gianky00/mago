@@ -2,7 +2,36 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
 import pyautogui
-import keyboard
+
+class ToolTip:
+    """
+    Create a tooltip for a given widget.
+    """
+    def __init__(self, widget, text):
+        self.widget = widget
+        self.text = text
+        self.tooltip_window = None
+        self.widget.bind("<Enter>", self.show_tooltip)
+        self.widget.bind("<Leave>", self.hide_tooltip)
+
+    def show_tooltip(self, event=None):
+        x, y, _, _ = self.widget.bbox("insert")
+        x += self.widget.winfo_rootx() + 25
+        y += self.widget.winfo_rooty() + 25
+
+        self.tooltip_window = tk.Toplevel(self.widget)
+        self.tooltip_window.wm_overrideredirect(True)
+        self.tooltip_window.wm_geometry(f"+{x}+{y}")
+
+        label = tk.Label(self.tooltip_window, text=self.text, justify='left',
+                         background="#ffffe0", relief='solid', borderwidth=1,
+                         wraplength=400, font=("tahoma", "8", "normal"))
+        label.pack(ipadx=1)
+
+    def hide_tooltip(self, event=None):
+        if self.tooltip_window:
+            self.tooltip_window.destroy()
+        self.tooltip_window = None
 
 class CaptureHelper:
     """A helper class to create a temporary, fullscreen, transparent window
@@ -22,7 +51,8 @@ class CaptureHelper:
                          font=("Arial", 22, "bold"), bg="white", fg="blue", relief="solid", borderwidth=2)
         label.pack(pady=20, padx=20)
 
-        self.parent.withdraw()
+        # Nascondi temporaneamente la finestra principale
+        self.parent.winfo_toplevel().withdraw()
         self.capture_window.bind("<Button-1>", self.capture_coords)
         self.capture_window.focus_force()
 
@@ -30,34 +60,46 @@ class CaptureHelper:
         """Callback for when the user clicks."""
         x, y = pyautogui.position()
         self.capture_window.destroy()
-        self.parent.deiconify()
+        # Ripristina la finestra principale
+        self.parent.winfo_toplevel().deiconify()
         self.on_capture_callback((x, y))
 
-class ConfigWindow(tk.Toplevel):
+class ConfigFrame(ttk.Frame):
     def __init__(self, parent):
         super().__init__(parent)
-        self.title("Configurazione Avanzata")
-        self.geometry("850x800")
         self.parent = parent
 
-        self.config_data = self.load_config()
+        self.config_data = self.load_config('config.json')
+        self.tooltips_data = self.load_config('tooltips.json', is_tooltip=True)
+
         if not self.config_data:
-            self.destroy()
+            self.create_error_label()
             return
 
         self.vars = {}
         self.create_widgets()
 
-    def load_config(self):
+    def load_config(self, filename, is_tooltip=False):
         try:
-            with open('config.json', 'r', encoding='utf-8') as f:
+            with open(filename, 'r', encoding='utf-8') as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError) as e:
-            messagebox.showerror("Errore", f"Impossibile caricare config.json: {e}", parent=self)
+            if not is_tooltip:
+                messagebox.showerror("Errore di Caricamento", f"Impossibile caricare '{filename}':\n{e}\n\nL'applicazione potrebbe non funzionare correttamente.")
+            else:
+                print(f"Avviso: file '{filename}' non trovato. I tooltip non saranno disponibili.")
             return None
 
+    def create_error_label(self):
+        ttk.Label(self, text="Errore nel caricamento di config.json. Impossibile mostrare le impostazioni.",
+                  font=("Arial", 14, "bold"), foreground="red").pack(pady=50, padx=20)
+
     def create_widgets(self):
-        main_notebook = ttk.Notebook(self)
+        # Frame principale per contenere tutto, inclusi i pulsanti
+        main_frame = ttk.Frame(self)
+        main_frame.pack(expand=True, fill="both")
+
+        main_notebook = ttk.Notebook(main_frame)
         main_notebook.pack(pady=10, padx=10, expand=True, fill="both")
 
         # --- Main Tab 1: File e Fogli Excel ---
@@ -90,9 +132,9 @@ class ConfigWindow(tk.Toplevel):
         self.create_generic_tab(other_notebook, ("pulizia_appunti",), "Pulizia Appunti")
         self.create_generic_tab(other_notebook, ("tasti_rapidi",), "Tasti Rapidi")
 
-
-        btn_save = ttk.Button(self, text="Salva e Chiudi", command=self.save_config)
-        btn_save.pack(pady=10)
+        # --- Pulsante Salva ---
+        btn_save = ttk.Button(main_frame, text="Salva Configurazione", command=self.save_config, style="Accent.TButton")
+        btn_save.pack(pady=15, padx=10)
 
     def get_nested_data(self, keys):
         data = self.config_data
@@ -127,13 +169,24 @@ class ConfigWindow(tk.Toplevel):
 
         try:
             data_section = self.get_nested_data(keys)
+            tooltip_section = self.get_nested_data(keys, data_source=self.tooltips_data)
         except KeyError:
             ttk.Label(frame, text=f"Sezione non trovata.").pack()
             return
 
         self.vars[keys] = {}
         for i, (field, value) in enumerate(data_section.items()):
-            ttk.Label(frame, text=f"{field}:").grid(row=i, column=0, sticky="w", padx=5, pady=5)
+            # Label Frame per contenere label e tooltip
+            label_frame = ttk.Frame(frame)
+            label_frame.grid(row=i, column=0, sticky="w", padx=5, pady=5)
+
+            ttk.Label(label_frame, text=f"{field}:").pack(side="left")
+
+            tooltip_text = tooltip_section.get(field, "Nessun aiuto disponibile.")
+            if self.tooltips_data:
+                help_icon = ttk.Label(label_frame, text=" (?)", cursor="hand2", foreground="blue")
+                help_icon.pack(side="left", padx=(2,0))
+                ToolTip(help_icon, tooltip_text)
 
             var = tk.StringVar(value=str(value))
             self.vars[keys][field] = var
@@ -157,6 +210,15 @@ class ConfigWindow(tk.Toplevel):
                 btn_capture.grid(row=i, column=2, padx=5)
 
         frame.columnconfigure(1, weight=1)
+
+    def get_nested_data(self, keys, data_source=None):
+        if data_source is None:
+            data_source = self.config_data
+
+        data = data_source
+        for key in keys:
+            data = data[key]
+        return data
 
     def create_mapping_tab(self, notebook, keys, title):
         tab = ttk.Frame(notebook)
@@ -211,15 +273,16 @@ class ConfigWindow(tk.Toplevel):
     def start_capture(self, var_to_update):
         def on_capture(coords):
             var_to_update.set(str(list(coords)))
-            self.parent.focus_force()
-            self.lift()
+            # Assicurati che la finestra principale torni in primo piano
+            self.winfo_toplevel().focus_force()
+            self.winfo_toplevel().lift()
         CaptureHelper(self, on_capture)
 
     def update_config_data(self):
         for keys, section_vars in self.vars.items():
             original_section = self.get_nested_data(keys)
 
-            if isinstance(original_section, list): # Handle list-based mappings
+            if isinstance(original_section, list):
                 new_data = []
                 for row_vars in section_vars:
                     new_item = {'nome': row_vars['nome']}
@@ -227,11 +290,11 @@ class ConfigWindow(tk.Toplevel):
                         new_item['colonna_excel'] = row_vars['colonna_excel'].get()
                         new_item['target_x_remoto'] = int(row_vars['target_x_remoto'].get())
                     except (ValueError, KeyError):
-                        pass # Should not happen if UI is built correctly
+                        pass
                     new_data.append(new_item)
                 self.set_nested_data(keys, new_data)
 
-            elif isinstance(original_section, dict): # Handle dict-based generic sections
+            elif isinstance(original_section, dict):
                 for field, var in section_vars.items():
                     original_value = original_section[field]
                     new_value_str = var.get()
@@ -254,13 +317,6 @@ class ConfigWindow(tk.Toplevel):
         try:
             with open('config.json', 'w', encoding='utf-8') as f:
                 json.dump(self.config_data, f, indent=2, ensure_ascii=False)
-            messagebox.showinfo("Successo", "Configurazione salvata!", parent=self)
-            self.destroy()
+            messagebox.showinfo("Successo", "Configurazione salvata con successo!", parent=self)
         except Exception as e:
-            messagebox.showerror("Errore", f"Impossibile salvare config.json: {e}", parent=self)
-
-if __name__ == '__main__':
-    root = tk.Tk()
-    root.withdraw()
-    app = ConfigWindow(root)
-    root.mainloop()
+            messagebox.showerror("Errore di Salvataggio", f"Impossibile salvare 'config.json':\n{e}", parent=self)

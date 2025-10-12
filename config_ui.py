@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
 import json
 import pyautogui
+import os
 
 class ToolTip:
     """
@@ -170,7 +171,6 @@ class ConfigFrame(ttk.Frame):
         other_notebook = ttk.Notebook(other_tab)
         other_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        self.create_generic_tab(other_notebook, ("generali",), "Generali")
         self.create_generic_tab(other_notebook, ("timing_e_ritardi",), "Timing")
         self.create_generic_tab(other_notebook, ("pulizia_appunti",), "Pulizia Appunti")
         self.create_generic_tab(other_notebook, ("tasti_rapidi",), "Tasti Rapidi")
@@ -251,12 +251,18 @@ class ConfigFrame(ttk.Frame):
 
             if isinstance(value, bool):
                 widget = ttk.Combobox(frame, textvariable=var, values=["True", "False"], state="readonly")
-            elif "percorso" in field:
+            elif "percorso" in field or "path" in field:
                 widget_frame = ttk.Frame(frame)
                 entry = ttk.Entry(widget_frame, textvariable=var, width=60)
                 entry.pack(side="left", fill="x", expand=True)
-                btn = ttk.Button(widget_frame, text="Sfoglia...", command=lambda v=var: self.browse_file(v))
-                btn.pack(side="left", padx=5)
+
+                browse_btn = ttk.Button(widget_frame, text="Sfoglia...", command=lambda v=var: self.browse_file(v))
+                browse_btn.pack(side="left", padx=(5, 2))
+
+                if field == "path_tesseract_cmd":
+                    detect_btn = ttk.Button(widget_frame, text="Rileva", command=lambda v=var: self.autodetect_tesseract(v))
+                    detect_btn.pack(side="left", padx=(0, 5))
+
                 widget = widget_frame
             else:
                 widget = ttk.Entry(frame, textvariable=var, width=50)
@@ -334,6 +340,28 @@ class ConfigFrame(ttk.Frame):
         filepath = filedialog.askopenfilename(title="Seleziona un file", filetypes=(("Tutti i file", "*.*"),))
         if filepath:
             var_to_update.set(filepath)
+
+    def autodetect_tesseract(self, var_to_update):
+        """Cerca tesseract.exe in percorsi comuni e aggiorna la variabile."""
+        print("Avvio rilevamento automatico di Tesseract...")
+        potential_paths = [
+            "C:\\Program Files\\Tesseract-OCR\\tesseract.exe",
+            "C:\\Program Files (x86)\\Tesseract-OCR\\tesseract.exe"
+        ]
+
+        found_path = None
+        for path in potential_paths:
+            if os.path.exists(path):
+                found_path = path
+                break
+
+        if found_path:
+            var_to_update.set(found_path)
+            messagebox.showinfo("Successo", f"Tesseract trovato e impostato a:\n{found_path}", parent=self)
+        else:
+            messagebox.showwarning("Fallito", "Impossibile trovare Tesseract nei percorsi predefiniti.\n\nPer favore, selezionalo manualmente usando 'Sfoglia...'.", parent=self)
+            # Apri la finestra di dialogo come fallback
+            self.browse_file(var_to_update)
 
     def start_capture(self, var_to_update, mode='point'):
         def on_capture(coords):

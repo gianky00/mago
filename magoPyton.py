@@ -104,7 +104,7 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
         print(f"ATTENZIONE: OCR non disponibile, impossibile gestire il popup '{nome_popup_log}'.")
         return False
     try:
-        pytesseract.pytesseract.tesseract_cmd = config['generali']['path_tesseract_cmd']
+        pytesseract.pytesseract.tesseract_cmd = config['file_e_fogli_excel']['impostazioni_file']['path_tesseract_cmd']
         time.sleep(config['coordinate_e_dati']['odc']['pausa_attesa_popup'])
         screenshot = pyautogui.screenshot(region=regione_screenshot)
         screenshot.save(f"debug_popup_{nome_popup_log}.png")
@@ -188,7 +188,7 @@ def controlla_e_gestisci_popup_odc(config, valore_odc_fallito, dati_riga_complet
     if not OCR_AVAILABLE: return False
     odc_cfg = config['coordinate_e_dati']['odc']
     try:
-        pytesseract.pytesseract.tesseract_cmd = config['generali']['path_tesseract_cmd']
+        pytesseract.pytesseract.tesseract_cmd = config['file_e_fogli_excel']['impostazioni_file']['path_tesseract_cmd']
         time.sleep(odc_cfg['pausa_attesa_popup'])
         screenshot = pyautogui.screenshot(region=tuple(odc_cfg['regione_screenshot_popup_generico']))
         screenshot.save("debug_popup_screenshot.png")
@@ -277,7 +277,7 @@ def run_automation(config):
     except Exception as e:
         print(f"ATTENZIONE: Impossibile impostare hotkey: {e}")
 
-    if gen_cfg['forzare_ricalcolo_excel']:
+    if file_cfg['forzare_ricalcolo_excel']:
         if WIN32_AVAILABLE:
             if not force_excel_recalculation(NOME_FILE_EXCEL):
                 print("ERRORE CRITICO: Ricalcolo Excel fallito.")

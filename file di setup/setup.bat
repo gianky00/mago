@@ -84,24 +84,26 @@ echo.
 :: ============================================================================
 ::  Create and activate the virtual environment
 :: ============================================================================
-if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
-    echo Creating virtual environment '%VENV_NAME%'...
-    
-    if not exist "%~dp0%VENV_NAME%" mkdir "%~dp0%VENV_NAME%"
-    
-    "%PYTHON_EXE%" -m venv "%~dp0%VENV_NAME%" >nul 2>&1
+set "VENV_PATH=%~dp0..\%VENV_NAME%"
 
-    if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
+if not exist "%VENV_PATH%\Scripts\activate.bat" (
+    echo Creating virtual environment '%VENV_NAME%' in '%VENV_PATH%'...
+    
+    if not exist "%VENV_PATH%" mkdir "%VENV_PATH%"
+    
+    "%PYTHON_EXE%" -m venv "%VENV_PATH%" >nul 2>&1
+
+    if not exist "%VENV_PATH%\Scripts\activate.bat" (
         echo ERROR: Failed to create virtual environment.
         goto :error
     )
     echo Virtual environment created successfully.
 ) else (
-    echo Virtual environment '%VENV_NAME%' already exists.
+    echo Virtual environment '%VENV_NAME%' already exists in '%VENV_PATH%'.
 )
 
 echo Activating the virtual environment...
-call "%~dp0%VENV_NAME%\Scripts\activate.bat"
+call "%VENV_PATH%\Scripts\activate.bat"
 if %errorlevel% neq 0 (
     echo ERROR: Failed to activate virtual environment.
     goto :error

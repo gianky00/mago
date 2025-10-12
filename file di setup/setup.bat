@@ -28,7 +28,7 @@ if '%errorlevel%' NEQ '0' (
 ::  Configuration
 :: ============================================================================
 set "VENV_NAME=venv"
-set "REQUIREMENTS_FILE=requirements.txt"
+set "REQUIREMENTS_FILE=..\requirements.txt"
 
 :: ============================================================================
 ::  Find the Python executable
@@ -84,14 +84,14 @@ echo.
 :: ============================================================================
 ::  Create and activate the virtual environment
 :: ============================================================================
-if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
-    echo Creating virtual environment '%VENV_NAME%'...
+if not exist "%~dp0..\%VENV_NAME%\Scripts\activate.bat" (
+    echo Creating virtual environment '%VENV_NAME%' in parent directory...
     
-    if not exist "%~dp0%VENV_NAME%" mkdir "%~dp0%VENV_NAME%"
+    if not exist "%~dp0..\%VENV_NAME%" mkdir "%~dp0..\%VENV_NAME%"
     
-    "%PYTHON_EXE%" -m venv "%~dp0%VENV_NAME%" >nul 2>&1
+    "%PYTHON_EXE%" -m venv "%~dp0..\%VENV_NAME%" >nul 2>&1
 
-    if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
+    if not exist "%~dp0..\%VENV_NAME%\Scripts\activate.bat" (
         echo ERROR: Failed to create virtual environment.
         goto :error
     )
@@ -101,7 +101,7 @@ if not exist "%~dp0%VENV_NAME%\Scripts\activate.bat" (
 )
 
 echo Activating the virtual environment...
-call "%~dp0%VENV_NAME%\Scripts\activate.bat"
+call "%~dp0..\%VENV_NAME%\Scripts\activate.bat"
 if %errorlevel% neq 0 (
     echo ERROR: Failed to activate virtual environment.
     goto :error

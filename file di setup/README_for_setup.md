@@ -1,16 +1,23 @@
-# Progetto di Automazione RPA - MagoPyton
+# Guida all'Installazione di MagoPyton
 
-## Descrizione del Progetto
+## Prerequisiti
 
-Questo progetto è uno script di automazione dei processi robotici (RPA) scritto in Python. Lo script è progettato per automatizzare le attività di inserimento dati interagendo con un'applicazione desktop e un file Excel. Utilizza il riconoscimento ottico dei caratteri (OCR) per gestire i popup e può essere configurato per diverse macchine.
+Prima di iniziare, assicurati di avere installato il seguente software:
 
-## Installazione
+1.  **Python**: È necessario che Python sia installato sul tuo sistema. Puoi scaricarlo dal [sito ufficiale di Python](https://www.python.org/downloads/).
+2.  **Tesseract OCR**: Questo strumento è fondamentale per il riconoscimento del testo nei popup.
+    *   Scarica il programma di installazione di Tesseract da [questo link](https://github.com/UB-Mannheim/tesseract/wiki).
+    *   Durante l'installazione, assicurati di installarlo nel percorso predefinito: `C:\Program Files\Tesseract-OCR`.
 
-Per installare e configurare il progetto, segui questi passaggi:
+## Procedura di Installazione
 
-1. **Python**: Assicurati che Python sia installato sul tuo sistema. Puoi scaricarlo dal [sito ufficiale di Python](https://www.python.org/downloads/).
-2. **Tesseract OCR**: Questo strumento è necessario per il riconoscimento del testo nei popup.
-3. **Esegui lo script setup.bat. Lo script eseguirà le seguenti azioni:
-        *   Creerà un ambiente virtuale Python nella cartella `venv`.
-        *   Installerà tutte le dipendenze richieste dal file `requirements.txt`.
-        *   Avvierà l'applicazione principale.
+Per installare e configurare l'ambiente di MagoPyton, segui questi passaggi:
+
+1.  **Esegui lo script di installazione con privilegi di amministratore**:
+    *   Fai clic con il pulsante destro del mouse su `setup.bat` e seleziona **Esegui come amministratore**.
+    *   Lo script eseguirà automaticamente le seguenti azioni:
+        *   Creerà un ambiente virtuale Python (`venv`) nella cartella principale del progetto.
+        *   Installerà tutte le dipendenze necessarie dal file `requirements.txt`.
+        *   Configurerà tutto il necessario per il corretto funzionamento dell'applicazione.
+
+Una volta completata l'installazione, puoi avviare l'applicazione eseguendo il file `avvio.bat` che si trova nella cartella principale del progetto.

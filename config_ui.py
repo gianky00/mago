@@ -210,12 +210,23 @@ class ConfigFrame(ttk.Frame):
         frame = ttk.LabelFrame(parent, text="Impostazioni")
         frame.pack(padx=10, pady=10, fill="x", expand=True)
 
+        # 1. Carica la sezione di configurazione principale (obbligatoria)
         try:
             data_section = self.get_nested_data(keys)
-            tooltip_section = self.get_nested_data(keys, data_source=self.tooltips_data) if self.tooltips_data else {}
         except KeyError:
-            ttk.Label(frame, text=f"Sezione non trovata.").pack()
+            # Se la sezione di configurazione non esiste in config.json, la tab non può essere creata.
+            ttk.Label(frame, text=f"Sezione di configurazione '{keys}' non trovata.").pack()
             return
+
+        # 2. Carica la sezione dei tooltip corrispondente (opzionale)
+        tooltip_section = {}
+        if self.tooltips_data:
+            try:
+                tooltip_section = self.get_nested_data(keys, data_source=self.tooltips_data)
+            except KeyError:
+                # Non è un errore critico. Significa solo che non ci sono tooltip per questa sezione.
+                # L'interfaccia si caricherà comunque, ma senza mostrare i tooltip per questi campi.
+                pass
 
         critical_params = ["ritardo_click_singolo", "ritardo_prima_incolla", "ritardo_dopo_tab"]
         important_params = ["ritardo_dopo_copia_excel", "ritardo_dopo_select_all", "pausa_1", "pausa_2", "pausa_3", "riconferma_copia_pausa"]

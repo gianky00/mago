@@ -7,15 +7,15 @@ def get_hardware_info():
     Questa funzione è disponibile solo quando lo script è stato offuscato.
     """
     try:
-        # Il nome del modulo di runtime può variare, ma PyArmor lo gestisce.
-        # Usiamo un nome generico che verrà risolto all'esecuzione.
-        from pyarmor_runtime_000000 import get_hd_info
+        # PyArmor sostituisce questo import con il riferimento corretto al runtime
+        # durante il processo di offuscamento.
+        from pyarmor_runtime import get_hd_info
         # hd_key=2 usa un mix di identificatori hardware (scelta robusta)
         return get_hd_info(2)
     except ImportError:
-        # Questo errore viene mostrato solo se si esegue lo script sorgente
-        # direttamente, senza che sia stato prima impacchettato da PyArmor.
-        return "ERRORE: Questo script deve essere eseguito dal pacchetto generato."
+        # Questo errore viene mostrato se si esegue lo script sorgente
+        # direttamente o se il pacchetto è incompleto.
+        return "ERRORE: Impossibile trovare il runtime di PyArmor. Pacchetto corrotto o incompleto."
     except Exception as e:
         return f"Si è verificato un errore imprevisto: {e}"
 

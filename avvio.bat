@@ -1,30 +1,32 @@
 @echo off
-setlocal
+:: Imposta la directory di lavoro sulla cartella in cui si trova lo script
+cd /d "%~dp0"
 
-:: ============================================================================
-::  Configuration
-:: ============================================================================
-set "VENV_NAME=venv"
-set "PYTHON_SCRIPT=gui.py"
-
-:: ============================================================================
-::  Activate virtual environment and run the script
-:: ============================================================================
-:: Activate the virtual environment
-call "%~dp0%VENV_NAME%\Scripts\activate.bat"
-if %errorlevel% neq 0 (
-    echo ERROR: Could not find or activate the virtual environment.
-    echo Please run setup.bat first.
-    pause
-    exit /b 1
+:: --- Controllo dei File Essenziali ---
+:: Controlla la presenza dei file Python principali e del runtime di PyArmor
+FOR %%F IN ("gui.py", "magoPyton.py", "config_ui.py") DO (
+    IF NOT EXIST "%%~F" (
+        echo ERRORE: File di programma essenziale '%%~F' non trovato.
+        echo Assicurati di aver scompattato tutti i file dallo ZIP nella stessa cartella.
+        pause
+        exit /b
+    )
 )
 
-:: Run the Python script
-start "" pythonw.exe "%PYTHON_SCRIPT%"
-if %errorlevel% neq 0 (
-    echo ERROR: The Python script failed to start.
+IF NOT EXIST "pyarmor_runtime_*" (
+    echo ERRORE: Cartella di runtime 'pyarmor_runtime_*' non trovata.
+    echo Assicurati di aver scompattato tutti i file dallo ZIP nella stessa cartella.
     pause
-    exit /b 1
+    exit /b
 )
 
-exit /b 0
+:: Controlla la presenza dei file di configurazione
+IF NOT EXIST "config.json" (
+    echo ATTENZIONE: File 'config.json' non trovato.
+    echo Il programma potrebbe non funzionare correttamente senza le configurazioni.
+)
+
+echo Avvio dell'applicazione in corso...
+
+:: Esegui lo script principale della GUI senza mostrare la finestra del prompt
+start "MagoPyton" /B pythonw.exe gui.py

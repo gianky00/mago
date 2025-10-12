@@ -162,10 +162,32 @@ class LicenseGenerator(tk.Tk):
 
         self.log("Inizio creazione utility info hardware...")
 
-        # Creazione script di avvio per Windows
+        # Creazione script di avvio per Windows (più robusto)
+        bat_content = """\
+@echo off
+:: Imposta la directory di lavoro sulla cartella in cui si trova lo script
+cd /d "%~dp0"
+
+:: Controlla se i file necessari esistono
+IF NOT EXIST "get_hw_info.py" (
+    echo ERRORE: File 'get_hw_info.py' non trovato.
+    echo Assicurati di aver scompattato tutti i file dallo ZIP nella stessa cartella.
+    pause
+    exit /b
+)
+
+IF NOT EXIST "pyarmor_runtime_*" (
+    echo ERRORE: Cartella di runtime 'pyarmor_runtime_*' non trovata.
+    echo Assicurati di aver scompattato tutti i file dallo ZIP nella stessa cartella.
+    pause
+    exit /b
+)
+
+:: Esegui lo script python
+pythonw.exe get_hw_info.py
+"""
         with open(os.path.join(temp_dir, "AVVIA_PER_ID_HARDWARE.bat"), "w") as f:
-            f.write("@echo off\n")
-            f.write("pythonw.exe get_hw_info.py\n")
+            f.write(bat_content)
 
         command = ["pyarmor", "gen", "-O", temp_dir, "get_hw_info.py"]
 

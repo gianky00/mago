@@ -36,33 +36,76 @@ class ToolTip:
 class CaptureHelper:
     """A helper class to create a temporary, fullscreen, transparent window
     for capturing mouse coordinates with a simple click."""
-    def __init__(self, parent, on_capture_callback):
+    def __init__(self, parent, on_capture_callback, capture_mode='point'):
         self.parent = parent
         self.on_capture_callback = on_capture_callback
+        self.capture_mode = capture_mode
 
         self.capture_window = tk.Toplevel(parent)
-        self.capture_window.attributes('-alpha', 0.4)
+        self.capture_window.attributes('-alpha', 0.3)
         self.capture_window.attributes('-fullscreen', True)
-        self.capture_window.configure(bg='grey', cursor="crosshair")
+        self.capture_window.configure(cursor="crosshair")
 
-        label_frame = tk.Frame(self.capture_window, bg="grey")
-        label_frame.pack(expand=True)
-        label = tk.Label(label_frame, text="Muovi il mouse sulla posizione desiderata e FAI CLICK per catturare.",
-                         font=("Arial", 22, "bold"), bg="white", fg="blue", relief="solid", borderwidth=2)
-        label.pack(pady=20, padx=20)
+        self.canvas = tk.Canvas(self.capture_window, bg='grey', highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True)
 
-        # Nascondi temporaneamente la finestra principale
+        self.start_x = None
+        self.start_y = None
+        self.rect = None
+
         self.parent.winfo_toplevel().withdraw()
-        self.capture_window.bind("<Button-1>", self.capture_coords)
+
+        if self.capture_mode == 'region':
+            self.setup_region_capture()
+        else:
+            self.setup_point_capture()
+
         self.capture_window.focus_force()
 
-    def capture_coords(self, event=None):
-        """Callback for when the user clicks."""
+    def setup_point_capture(self):
+        label = tk.Label(self.canvas, text="FAI CLICK per catturare la posizione",
+                         font=("Arial", 22, "bold"), bg="white", fg="blue", relief="solid", borderwidth=2)
+        self.canvas.create_window(self.capture_window.winfo_screenwidth() / 2, self.capture_window.winfo_screenheight() / 2, window=label)
+        self.capture_window.bind("<Button-1>", self.capture_point_coords)
+
+    def setup_region_capture(self):
+        label = tk.Label(self.canvas, text="TIENI PREMUTO e TRASCINA per selezionare una regione",
+                         font=("Arial", 22, "bold"), bg="white", fg="blue", relief="solid", borderwidth=2)
+        self.canvas.create_window(self.capture_window.winfo_screenwidth() / 2, self.capture_window.winfo_screenheight() / 2, window=label)
+        self.canvas.bind("<ButtonPress-1>", self.on_button_press)
+        self.canvas.bind("<B1-Motion>", self.on_mouse_drag)
+        self.canvas.bind("<ButtonRelease-1>", self.on_button_release)
+
+    def capture_point_coords(self, event=None):
         x, y = pyautogui.position()
-        self.capture_window.destroy()
-        # Ripristina la finestra principale
-        self.parent.winfo_toplevel().deiconify()
+        self.close_window()
         self.on_capture_callback((x, y))
+
+    def on_button_press(self, event):
+        self.start_x = event.x
+        self.start_y = event.y
+        if self.rect:
+            self.canvas.delete(self.rect)
+        self.rect = self.canvas.create_rectangle(self.start_x, self.start_y, self.start_x, self.start_y, outline='red', width=2)
+
+    def on_mouse_drag(self, event):
+        cur_x, cur_y = (event.x, event.y)
+        self.canvas.coords(self.rect, self.start_x, self.start_y, cur_x, cur_y)
+
+    def on_button_release(self, event):
+        end_x, end_y = (event.x, event.y)
+
+        left = min(self.start_x, end_x)
+        top = min(self.start_y, end_y)
+        width = abs(self.start_x - end_x)
+        height = abs(self.start_y - end_y)
+
+        self.close_window()
+        self.on_capture_callback([left, top, width, height])
+
+    def close_window(self):
+        self.capture_window.destroy()
+        self.parent.winfo_toplevel().deiconify()
 
 class ConfigFrame(ttk.Frame):
     def __init__(self, parent):
@@ -119,7 +162,7 @@ class ConfigFrame(ttk.Frame):
         coords_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
         self.create_generic_tab(coords_notebook, ("coordinate_e_dati", "gui"), "GUI")
-        self.create_generic_tab(coords_notebook, ("coordinate_e_dati", "odc"), "ODC")
+        self.create_generic_tab(coords_notebook, ("coordinate_e_dati", "odc"), "Registrazione ODC")
 
         # --- Main Tab 3: Altre Impostazioni ---
         other_tab = ttk.Frame(main_notebook)
@@ -212,7 +255,8 @@ class ConfigFrame(ttk.Frame):
             widget.grid(row=i, column=1, sticky="ew", padx=5, pady=5)
 
             if "coordinate" in field or "regione" in field:
-                btn_capture = ttk.Button(frame, text="Cattura", command=lambda v=var: self.start_capture(v))
+                capture_mode = 'region' if 'regione' in field else 'point'
+                btn_capture = ttk.Button(frame, text="Cattura", command=lambda v=var, m=capture_mode: self.start_capture(v, m))
                 btn_capture.grid(row=i, column=2, padx=5)
 
         frame.columnconfigure(1, weight=1)
@@ -266,7 +310,13 @@ class ConfigFrame(ttk.Frame):
 
             var_x = tk.StringVar(value=item['target_x_remoto'])
             row_vars['target_x_remoto'] = var_x
-            ttk.Entry(frame, textvariable=var_x, width=15).grid(row=i + 1, column=2, padx=5, pady=5)
+
+            x_entry_frame = ttk.Frame(frame)
+            x_entry_frame.grid(row=i + 1, column=2, padx=5, pady=5, sticky="ew")
+
+            ttk.Entry(x_entry_frame, textvariable=var_x, width=10).pack(side="left")
+            btn_capture = ttk.Button(x_entry_frame, text="Cattura", command=lambda v=var_x: self.start_capture_x_only(v))
+            btn_capture.pack(side="left", padx=5)
 
             row_vars['nome'] = item['nome']
             self.vars[keys].append(row_vars)
@@ -276,9 +326,17 @@ class ConfigFrame(ttk.Frame):
         if filepath:
             var_to_update.set(filepath)
 
-    def start_capture(self, var_to_update):
+    def start_capture(self, var_to_update, mode='point'):
         def on_capture(coords):
             var_to_update.set(str(list(coords)))
+            # Assicurati che la finestra principale torni in primo piano
+            self.winfo_toplevel().focus_force()
+            self.winfo_toplevel().lift()
+        CaptureHelper(self, on_capture, capture_mode=mode)
+
+    def start_capture_x_only(self, var_to_update):
+        def on_capture(coords):
+            var_to_update.set(str(coords[0])) # Salva solo la coordinata X
             # Assicurati che la finestra principale torni in primo piano
             self.winfo_toplevel().focus_force()
             self.winfo_toplevel().lift()

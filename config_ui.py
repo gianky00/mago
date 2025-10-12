@@ -217,17 +217,26 @@ class ConfigFrame(ttk.Frame):
             ttk.Label(frame, text=f"Sezione non trovata.").pack()
             return
 
-        critical_params = ["ritardo_click_singolo", "ritardo_prima_incolla", "ritardo_dopo_select_all", "ritardo_dopo_copia_excel"]
+        critical_params = ["ritardo_click_singolo", "ritardo_prima_incolla", "ritardo_dopo_tab"]
+        important_params = ["ritardo_dopo_copia_excel", "ritardo_dopo_select_all", "pausa_1", "pausa_2", "pausa_3", "riconferma_copia_pausa"]
 
         self.vars[keys] = {}
         for i, (field, value) in enumerate(data_section.items()):
             label_frame = ttk.Frame(frame)
             label_frame.grid(row=i, column=0, sticky="w", padx=5, pady=5)
 
-            is_critical = field in critical_params
-            label_text = f" * {field}:" if is_critical else f"{field}:"
-            label_color = "darkred" if is_critical else "black"
-            label_font = ("Arial", 9, "bold") if is_critical else ("Arial", 9)
+            label_text = f"{field}:"
+            label_color = "black"
+            label_font = ("Arial", 9)
+
+            if field in critical_params:
+                label_text = f"* [CRITICO] {field}:"
+                label_color = "darkred"
+                label_font = ("Arial", 9, "bold")
+            elif field in important_params:
+                label_text = f"* [IMPORTANTE] {field}:"
+                label_color = "#E65100" # Arancione scuro
+                label_font = ("Arial", 9, "bold")
 
             ttk.Label(label_frame, text=label_text, foreground=label_color, font=label_font).pack(side="left")
 

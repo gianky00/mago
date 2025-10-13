@@ -1,6 +1,7 @@
 @echo off
-:: Imposta la directory di lavoro sulla cartella in cui si trova lo script
+:: Imposta la directory di lavoro e il percorso di ricerca di Python
 cd /d "%~dp0"
+set PYTHONPATH=%~dp0
 
 :: --- Controllo dei File Essenziali ---
 :: Controlla la presenza dei file Python principali e del runtime di PyArmor

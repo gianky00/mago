@@ -165,8 +165,9 @@ class LicenseGenerator(tk.Tk):
         # Creazione script di avvio per Windows (più robusto)
         bat_content = """\
 @echo off
-:: Imposta la directory di lavoro sulla cartella in cui si trova lo script
+:: Imposta la directory di lavoro e il percorso di ricerca di Python
 cd /d "%~dp0"
+set PYTHONPATH=%~dp0
 
 :: Controlla se i file necessari esistono
 IF NOT EXIST "get_hw_info.py" (

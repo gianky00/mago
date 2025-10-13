@@ -262,6 +262,39 @@ def gestisci_popup_matricola_errata(config, matricola_originale, dati_riga_compl
         # Potrebbe essere utile lanciare un'eccezione per fermare lo script qui
         raise Exception(f"Matricola '{matricola_originale}' per '{nome_dipendente}' non corretta. Automazione interrotta dall'utente.")
 
+def controlla_e_gestisci_odc_gia_registrato(config):
+    """Controlla se appare il popup 'ODC già registrato' e lo gestisce."""
+    if not OCR_AVAILABLE:
+        return False
+
+    odc_cfg = config['coordinate_e_dati']['odc']
+    regione = tuple(odc_cfg.get('regione_popup_odc_gia_registrato', [0, 0, 0, 0]))
+    testo_da_cercare = odc_cfg.get('testo_popup_odc_gia_registrato', '')
+    coord_chiudi = tuple(odc_cfg.get('coordinate_chiudi_commessa_variante', [0, 0]))
+    coord_non_salvare = tuple(odc_cfg.get('coordinate_non_salvare_commessa_variante', [0, 0]))
+
+    if not all([regione, testo_da_cercare, coord_chiudi, coord_non_salvare]):
+        return False # Configurazione incompleta, non posso procedere
+
+    try:
+        time.sleep(odc_cfg['pausa_attesa_popup'])
+        screenshot = pyautogui.screenshot(region=regione)
+        testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
+        print(f"\n[DEBUG OCR - ODC Già Registrato] Testo estratto: '{testo_estratto.strip()}'")
+
+        if testo_da_cercare.lower() in testo_estratto.lower():
+            print("  --> POPUP 'ODC GIÀ REGISTRATO' RILEVATO. Chiudo le finestre e proseguo.")
+            pyautogui.click(coord_chiudi)
+            time.sleep(1.0)
+            pyautogui.click(coord_non_salvare)
+            time.sleep(1.5)
+            return True # Indica che il popup è stato gestito
+        return False
+    except Exception as e:
+        print(f"\nERRORE durante la gestione del popup 'ODC già registrato': {e}")
+        traceback.print_exc()
+        return False
+
 def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa):
     print("\n--- INIZIO PROCEDURA REGISTRAZIONE ODC ---")
     odc_cfg = config['coordinate_e_dati']['odc']
@@ -274,6 +307,12 @@ def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_com
 
         pyautogui.click(odc_cfg['coordinate_casella_commessa'])
         pyautogui.write(str(valore_odc_fallito), interval=0.05)
+
+        # Inserisco qui il controllo per ODC già registrato
+        if controlla_e_gestisci_odc_gia_registrato(config):
+            print("  ODC già registrato, la procedura di creazione viene saltata.")
+            return True # Ritorno True per indicare successo e proseguire
+
         pyautogui.press('tab'); time.sleep(0.5)
 
         descrizione = dati_riga_completa.get('T', '')

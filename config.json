@@ -4,7 +4,6 @@
       "percorso_file_excel": "C:\\Users\\Coemi\\Desktop\\PERFETTO\\Dataease_ALLEGRETTI_02-2025.xlsm",
       "nome_foglio_dati": "DataEasePyton",
       "nome_foglio_avanzamento": "ParametriPyton",
-      "colonna_nome_dipendente_foglio_dati": "F",
       "forzare_ricalcolo_excel": false,
       "path_tesseract_cmd": "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
     },
@@ -64,10 +63,6 @@
       "regione_popup_codice_iva": [727, 452, 471, 185],
       "testo_popup_codice_iva": "Il codice IVA del cliente viene impostato solo nella scheda",
       "coordinate_click_popup_codice_iva": [1145, 603],
-      "regione_popup_odc_gia_registrato": [791, 462, 342, 169],
-      "testo_popup_odc_gia_registrato": "già registrata",
-      "coordinate_chiudi_commessa_variante": [330, 62],
-      "coordinate_non_salvare_commessa_variante": [981, 599],
       "regione_popup_matricola_disabilitata": [836, 459, 252, 173],
       "testo_popup_matricola_disabilitata": "disattivo",
       "coordinate_click_popup_matricola_disabilitata_ok": [1071, 600],

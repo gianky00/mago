@@ -69,6 +69,50 @@ def restart_script(config):
     subprocess.Popen([python_executable, script_to_run] + sys.argv[1:])
     sys.exit(0)
 
+def aggiorna_matricola_excel(config, vecchia_matricola, nuova_matricola):
+    """
+    Cerca e sostituisce una matricola in un foglio Excel specificato.
+    """
+    file_cfg = config['file_e_fogli_excel']['impostazioni_file']
+    odc_cfg = config['coordinate_e_dati']['odc']
+    nome_file_excel = os.path.abspath(file_cfg['percorso_file_excel'])
+    nome_foglio_matricole = odc_cfg.get('nome_foglio_matricole', '')
+
+    if not nome_foglio_matricole:
+        print("ATTENZIONE: 'nome_foglio_matricole' non è configurato in config.json. Impossibile aggiornare la matricola.")
+        return False
+
+    try:
+        wb = openpyxl.load_workbook(nome_file_excel, keep_vba=True)
+        if nome_foglio_matricole not in wb.sheetnames:
+            print(f"ERRORE: Il foglio '{nome_foglio_matricole}' non è stato trovato nel file Excel.")
+            wb.close()
+            return False
+
+        sheet = wb[nome_foglio_matricole]
+        matricola_trovata = False
+        for row in sheet.iter_rows():
+            for cell in row:
+                if str(cell.value).strip() == str(vecchia_matricola).strip():
+                    print(f"  Trovata matricola '{vecchia_matricola}' nella cella {cell.coordinate}. Sostituisco con '{nuova_matricola}'.")
+                    cell.value = nuova_matricola
+                    matricola_trovata = True
+                    break
+            if matricola_trovata:
+                break
+
+        if not matricola_trovata:
+            print(f"ATTENZIONE: La matricola '{vecchia_matricola}' non è stata trovata nel foglio '{nome_foglio_matricole}'.")
+
+        wb.save(nome_file_excel)
+        wb.close()
+        print("File Excel salvato con la matricola aggiornata.")
+        return True
+    except Exception as e:
+        print(f"\nERRORE durante l'aggiornamento della matricola nel file Excel: {e}")
+        traceback.print_exc()
+        return False
+
 def force_excel_recalculation(filepath):
     if not WIN32_AVAILABLE:
         print("ERRORE: Impossibile forzare il ricalcolo, pywin32 non disponibile.")
@@ -123,6 +167,63 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
         print(f"\nERRORE durante la gestione del popup '{nome_popup_log}' con OCR: {e}")
         traceback.print_exc()
         return False
+
+def gestisci_popup_matricola_disabilitata(config, matricola_corrente):
+    """
+    Controlla la presenza del popup 'matricola disabilitata', gestisce l'interazione
+    e restituisce la nuova matricola se modificata dall'utente.
+    """
+    if not OCR_AVAILABLE:
+        print("ATTENZIONE: OCR non disponibile, impossibile gestire il popup 'matricola disabilitata'.")
+        return matricola_corrente
+
+    odc_cfg = config['coordinate_e_dati']['odc']
+    regione = tuple(odc_cfg.get('regione_popup_matricola_disabilitata', [0,0,0,0]))
+    testo_da_cercare = odc_cfg.get('testo_popup_matricola_disabilitata', '')
+    coord_ok = tuple(odc_cfg.get('coordinate_click_popup_matricola_disabilitata_ok', [0,0]))
+
+    if not all([regione, testo_da_cercare, coord_ok]):
+        print("ATTENZIONE: Configurazione per 'matricola disabilitata' incompleta. Salto il controllo.")
+        return matricola_corrente
+
+    try:
+        pytesseract.pytesseract.tesseract_cmd = config['file_e_fogli_excel']['impostazioni_file']['path_tesseract_cmd']
+        time.sleep(config['coordinate_e_dati']['odc']['pausa_attesa_popup']) # Riuso la pausa generica
+        screenshot = pyautogui.screenshot(region=regione)
+        screenshot.save("debug_popup_matricola.png")
+        testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
+        print(f"\n[DEBUG OCR - Matricola Disabilitata] Testo estratto: '{testo_estratto.strip()}'")
+
+        if testo_da_cercare.lower() in testo_estratto.lower():
+            print(f"  --> POPUP MATRICOLA DISABILITATA RILEVATO per matricola '{matricola_corrente}'")
+            pyautogui.click(coord_ok)
+            time.sleep(1.0)
+
+            print(f"Matricola '{matricola_corrente}' disabilitata. Verifica.")
+
+            nuova_matricola = pyautogui.prompt(
+                text=f"La matricola '{matricola_corrente}' risulta disabilitata.\n\nInserisci la NUOVA matricola per continuare e aggiornare il file Excel.\nLascia vuoto per annullare e saltare la riga.",
+                title="Matricola Disabilitata - Inserisci Nuova Matricola",
+                default=""
+            )
+
+            if nuova_matricola:
+                nuova_matricola = nuova_matricola.strip()
+                print(f"  L'utente ha inserito la nuova matricola: '{nuova_matricola}'. Procedo con l'aggiornamento.")
+                aggiorna_matricola_excel(config, matricola_corrente, nuova_matricola)
+                return nuova_matricola
+            else:
+                print("  L'utente ha annullato. La matricola non verrà modificata e la riga potrebbe essere saltata.")
+                # Restituisco la matricola originale, la logica a monte deciderà come gestire
+                return matricola_corrente
+        else:
+            # Nessun popup trovato, tutto ok
+            return matricola_corrente
+
+    except Exception as e:
+        print(f"\nERRORE durante la gestione del popup 'matricola disabilitata': {e}")
+        traceback.print_exc()
+        return matricola_corrente # In caso di errore, prosegui con la matricola originale
 
 def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa):
     print("\n--- INIZIO PROCEDURA REGISTRAZIONE ODC ---")
@@ -378,10 +479,21 @@ def run_automation(config):
                     if target_x > 0:
                         esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
 
+                        # Gestione popup ODC non trovato (primo campo)
                         if col_lettera == col_mapping[0]['colonna_excel']:
                             if controlla_e_gestisci_popup_odc(config, val_str, riga_obj['dati_colonne']):
-                                print("  Re-inserimento dato dopo gestione popup...")
+                                print("  Re-inserimento dato dopo gestione popup ODC...")
                                 esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
+
+                        # Gestione popup Matricola Disabilitata
+                        if matricola_mapping and mapping_item['nome'] == matricola_mapping['nome']:
+                            nuova_matricola = gestisci_popup_matricola_disabilitata(config, val_str)
+                            if nuova_matricola != val_str:
+                                print(f"  La matricola è stata aggiornata a '{nuova_matricola}'. Re-inserisco il dato.")
+                                val_str = nuova_matricola # Aggiorno il valore per il resto dello script
+                                # Sovrascrivo il campo matricola con il nuovo valore
+                                esegui_incolla_e_tab(config, val_str, (target_x, y_target), f"Nuova matricola: {val_str}")
+
                 else:
                      if target_x > 0:
                         pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])

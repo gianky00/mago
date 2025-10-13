@@ -209,6 +209,59 @@ def gestisci_popup_matricola_disabilitata(config, matricola_corrente):
         traceback.print_exc()
         return matricola_corrente
 
+def gestisci_popup_matricola_errata(config, matricola_originale, dati_riga_completa, target_coords):
+    """Gestisce il popup 'non trovato' specifico per il campo Matricola."""
+    print(f"\nSospetto popup 'Matricola non trovata' per il valore '{matricola_originale}'. Avvio procedura di verifica e correzione.")
+    odc_cfg = config['coordinate_e_dati']['odc']
+    file_cfg = config['file_e_fogli_excel']['impostazioni_file']
+
+    # 1. Verifica se il popup 'non trovato' è effettivamente presente
+    time.sleep(odc_cfg['pausa_attesa_popup'])
+    screenshot = pyautogui.screenshot(region=tuple(odc_cfg['regione_screenshot_popup_generico']))
+    testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
+
+    if odc_cfg['testo_da_cercare_popup_generico'].lower() not in testo_estratto.lower():
+        print("  Nessun popup 'non trovato' rilevato. Proseguo normalmente.")
+        return matricola_originale
+
+    # 2. Popup confermato. Inizia la logica di re-inserimento.
+    print("  Popup 'non trovato' confermato. Eseguo il primo tentativo di reinserimento.")
+    pyautogui.click(odc_cfg['coordinate_popup_tasto_no']) # Chiudo il popup
+    time.sleep(0.5)
+    esegui_incolla_e_tab(config, matricola_originale, target_coords, f"Re-inserimento Matricola: {matricola_originale}")
+
+    # 3. Secondo controllo del popup
+    time.sleep(odc_cfg['pausa_attesa_popup'])
+    screenshot_2 = pyautogui.screenshot(region=tuple(odc_cfg['regione_screenshot_popup_generico']))
+    testo_estratto_2 = pytesseract.image_to_string(screenshot_2, lang='ita')
+
+    if odc_cfg['testo_da_cercare_popup_generico'].lower() not in testo_estratto_2.lower():
+        print("  Il reinserimento ha avuto successo. Proseguo.")
+        return matricola_originale
+
+    # 4. Errore persistente. Chiedo input all'utente.
+    print("  L'errore persiste dopo il reinserimento. Richiesta di intervento manuale.")
+    pyautogui.click(odc_cfg['coordinate_popup_tasto_no']) # Chiudo il popup di nuovo
+    time.sleep(0.5)
+
+    col_nome_dipendente = file_cfg.get('colonna_nome_dipendente_foglio_dati', '')
+    nome_dipendente = dati_riga_completa.get(col_nome_dipendente, 'Dipendente non trovato')
+
+    nuova_matricola = pyautogui.prompt(
+        text=f"Matricola '{matricola_originale}' errata per il dipendente: {nome_dipendente}.\n\nFornisci la matricola corretta per continuare.",
+        title="Matricola Errata",
+        default=""
+    )
+
+    if nuova_matricola:
+        nuova_matricola = nuova_matricola.strip()
+        print(f"  L'utente ha fornito una nuova matricola: '{nuova_matricola}'.")
+        return nuova_matricola
+    else:
+        print("  L'utente ha annullato l'inserimento. La matricola non è stata corretta.")
+        # Potrebbe essere utile lanciare un'eccezione per fermare lo script qui
+        raise Exception(f"Matricola '{matricola_originale}' per '{nome_dipendente}' non corretta. Automazione interrotta dall'utente.")
+
 def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa):
     print("\n--- INIZIO PROCEDURA REGISTRAZIONE ODC ---")
     odc_cfg = config['coordinate_e_dati']['odc']
@@ -374,6 +427,10 @@ def run_automation(config):
     print(f"\nFASE 1: Lettura dati da '{os.path.basename(NOME_FILE_EXCEL)}'...")
 
     colonne_da_leggere = [item['colonna_excel'] for item in col_mapping]
+    col_nome_dipendente = file_cfg.get('colonna_nome_dipendente_foglio_dati')
+    if col_nome_dipendente and col_nome_dipendente not in colonne_da_leggere:
+        colonne_da_leggere.append(col_nome_dipendente)
+
     STATO_DA_CERCARE = "DA COMPLETARE"
 
     task_da_eseguire = None
@@ -469,14 +526,19 @@ def run_automation(config):
                                 print("  Re-inserimento dato dopo gestione popup ODC...")
                                 esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
 
-                        # Gestione popup Matricola Disabilitata
+                        # Gestione popup Matricola Disabilitata o Errata
                         if matricola_mapping and mapping_item['nome'] == matricola_mapping['nome']:
-                            nuova_matricola = gestisci_popup_matricola_disabilitata(config, val_str)
-                            if nuova_matricola != val_str:
-                                print(f"  La matricola è stata aggiornata a '{nuova_matricola}'. Re-inserisco il dato.")
-                                val_str = nuova_matricola # Aggiorno il valore per il resto dello script
-                                # Sovrascrivo il campo matricola con il nuovo valore
-                                esegui_incolla_e_tab(config, val_str, (target_x, y_target), f"Nuova matricola: {val_str}")
+                            # Prima controllo la disabilitata, che è più specifica
+                            matricola_aggiornata = gestisci_popup_matricola_disabilitata(config, val_str)
+
+                            # Se non era disabilitata, controllo quella generica 'non trovato'
+                            if matricola_aggiornata == val_str:
+                                matricola_aggiornata = gestisci_popup_matricola_errata(config, val_str, riga_obj['dati_colonne'], (target_x, y_target))
+
+                            if matricola_aggiornata != val_str:
+                                print(f"  La matricola è stata corretta in '{matricola_aggiornata}'. Re-inserisco il dato.")
+                                val_str = matricola_aggiornata
+                                esegui_incolla_e_tab(config, val_str, (target_x, y_target), f"Matricola corretta: {val_str}")
 
                 else:
                      if target_x > 0:

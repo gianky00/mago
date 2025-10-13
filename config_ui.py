@@ -139,45 +139,58 @@ class ConfigFrame(ttk.Frame):
                   font=("Arial", 14, "bold"), foreground="red").pack(pady=50, padx=20)
 
     def create_widgets(self):
-        # Frame principale per contenere tutto, inclusi i pulsanti
-        main_frame = ttk.Frame(self)
-        main_frame.pack(expand=True, fill="both")
+        # Il frame principale ora usa grid per un miglior controllo
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-        main_notebook = ttk.Notebook(main_frame)
-        main_notebook.pack(pady=10, padx=10, expand=True, fill="both")
+        main_notebook = ttk.Notebook(self)
+        main_notebook.grid(row=0, column=0, sticky="nsew", padx=10, pady=(10, 0))
 
-        # --- Main Tab 1: File e Fogli Excel ---
-        excel_tab = ttk.Frame(main_notebook)
-        main_notebook.add(excel_tab, text="File e Fogli Excel")
-        excel_notebook = ttk.Notebook(excel_tab)
-        excel_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+        # --- Main Tab 1: Profili ---
+        profiles_tab = ttk.Frame(main_notebook)
+        main_notebook.add(profiles_tab, text="Profili")
+        self.create_profile_management_tab(profiles_tab)
 
-        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
-        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Mappature Colonne Foglio Avanzamento")
-        self.create_mapping_tab(excel_notebook, ("file_e_fogli_excel", "mappatura_colonne_profili"), "Profili Mappatura Colonne")
+        # --- Main Tab 2: Mappature (con sub-tabs) ---
+        file_mappature_tab = ttk.Frame(main_notebook)
+        main_notebook.add(file_mappature_tab, text="Mappature e ODC")
+        file_mappature_notebook = ttk.Notebook(file_mappature_tab)
+        file_mappature_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        # --- Main Tab 2: Coordinate e Dati ---
-        coords_tab = ttk.Frame(main_notebook)
-        main_notebook.add(coords_tab, text="Coordinate e Dati")
-        coords_notebook = ttk.Notebook(coords_tab)
-        coords_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+        self.mapping_tab_frame = ttk.Frame(file_mappature_notebook)
+        self.odc_tab_frame = ttk.Frame(file_mappature_notebook)
+        self.mapping_vars = {}
 
-        self.create_generic_tab(coords_notebook, ("coordinate_e_dati", "gui"), "GUI")
-        self.create_generic_tab(coords_notebook, ("coordinate_e_dati", "odc"), "Registrazione ODC")
+        file_mappature_notebook.add(self.mapping_tab_frame, text="Mappatura Colonne per Profilo")
+        self.draw_mapping_entries()
 
-        # --- Main Tab 3: Altre Impostazioni ---
-        other_tab = ttk.Frame(main_notebook)
-        main_notebook.add(other_tab, text="Altre Impostazioni")
-        other_notebook = ttk.Notebook(other_tab)
-        other_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+        file_mappature_notebook.add(self.odc_tab_frame, text="Impostazioni ODC per Profilo")
+        self.draw_odc_settings()
 
-        self.create_generic_tab(other_notebook, ("timing_e_ritardi",), "Timing")
-        self.create_generic_tab(other_notebook, ("pulizia_appunti",), "Pulizia Appunti")
-        self.create_generic_tab(other_notebook, ("tasti_rapidi",), "Tasti Rapidi")
+        # --- Main Tab 3: Impostazioni Globali (con sub-tabs) ---
+        global_settings_tab = ttk.Frame(main_notebook)
+        main_notebook.add(global_settings_tab, text="Impostazioni Globali")
+        global_settings_notebook = ttk.Notebook(global_settings_tab)
+        global_settings_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        # --- Pulsante Salva ---
-        btn_save = ttk.Button(main_frame, text="Salva Configurazione", command=self.save_config, style="Accent.TButton")
-        btn_save.pack(pady=15, padx=10)
+        self.create_generic_tab(global_settings_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Percorsi File")
+        self.create_generic_tab(global_settings_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Colonne Avanzamento")
+        self.create_generic_tab(global_settings_notebook, ("coordinate_e_dati", "gui"), "Coordinate GUI")
+        self.create_generic_tab(global_settings_notebook, ("timing_e_ritardi",), "Timing")
+        self.create_generic_tab(global_settings_notebook, ("pulizia_appunti",), "Pulizia Appunti")
+        self.create_generic_tab(global_settings_notebook, ("tasti_rapidi",), "Tasti Rapidi")
+
+        # Frame per il pulsante Salva, posizionato sotto il notebook
+        button_frame = ttk.Frame(self)
+        button_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
+
+        # Centra il pulsante nel suo frame
+        button_frame.grid_columnconfigure(0, weight=1)
+        btn_save = ttk.Button(button_frame, text="Salva Configurazione", command=self.save_config, style="Accent.TButton")
+        btn_save.grid(row=0, column=0, pady=5)
+
+        # Chiamata finale per popolare i dati dipendenti dal profilo
+        self.on_profile_change()
 
     def get_nested_data(self, keys):
         data = self.config_data
@@ -221,15 +234,22 @@ class ConfigFrame(ttk.Frame):
         # 2. Carica la sezione dei tooltip corrispondente (opzionale)
         tooltip_section = {}
         if self.tooltips_data:
+            tooltip_keys = keys
+            # Se stiamo popolando la tab ODC, il percorso dei tooltip è fisso e non dipende dal nome del profilo
+            if keys and keys[-1] == "impostazioni_odc":
+                tooltip_keys = ("file_e_fogli_excel", "mappatura_colonne_profili", "profili", "impostazioni_odc")
+
             try:
-                tooltip_section = self.get_nested_data(keys, data_source=self.tooltips_data)
+                tooltip_section = self.get_nested_data(tooltip_keys, data_source=self.tooltips_data)
             except KeyError:
                 # Non è un errore critico. Significa solo che non ci sono tooltip per questa sezione.
-                # L'interfaccia si caricherà comunque, ma senza mostrare i tooltip per questi campi.
+                print(f"Avviso: Nessun tooltip trovato per la sezione '{keys}'.")
                 pass
 
         critical_params = ["ritardo_click_singolo", "ritardo_prima_incolla", "ritardo_dopo_tab"]
         important_params = ["ritardo_dopo_copia_excel", "ritardo_dopo_select_all", "pausa_1", "pausa_2", "pausa_3", "riconferma_copia_pausa"]
+        profile_dependant_params = ["regione_popup_odc_gia_registrato", "regione_popup_matricola_disabilitata"]
+
 
         self.vars[keys] = {}
         for i, (field, value) in enumerate(data_section.items()):
@@ -239,6 +259,7 @@ class ConfigFrame(ttk.Frame):
             label_text = f"{field}:"
             label_color = "black"
             label_font = ("Arial", 9)
+            label_bg = None
 
             if field in critical_params:
                 label_text = f"* [CRITICO] {field}:"
@@ -246,10 +267,18 @@ class ConfigFrame(ttk.Frame):
                 label_font = ("Arial", 9, "bold")
             elif field in important_params:
                 label_text = f"* [IMPORTANTE] {field}:"
-                label_color = "#E65100" # Arancione scuro
+                label_color = "#E65100"
                 label_font = ("Arial", 9, "bold")
+            # Applica lo sfondo giallo solo se siamo nella tab ODC e il campo è uno di quelli variabili
+            is_odc_tab = keys and keys[-1] == "impostazioni_odc"
+            if is_odc_tab and field in profile_dependant_params:
+                label_bg = "yellow"
 
-            ttk.Label(label_frame, text=label_text, foreground=label_color, font=label_font).pack(side="left")
+            label_widget = ttk.Label(label_frame, text=label_text, foreground=label_color, font=label_font)
+            if label_bg:
+                label_widget.configure(background=label_bg)
+            label_widget.pack(side="left")
+
 
             tooltip_text = tooltip_section.get(field, "Nessun aiuto disponibile.")
             if self.tooltips_data:
@@ -296,19 +325,8 @@ class ConfigFrame(ttk.Frame):
             data = data[key]
         return data
 
-    def create_mapping_tab(self, notebook, keys, title):
-        self.mapping_tab = ttk.Frame(notebook)
-        notebook.add(self.mapping_tab, text=title)
-        self.mapping_vars = {}
-        self.populate_mapping_tab()
-
-    def populate_mapping_tab(self):
-        # Pulisce la tab prima di ridisegnarla
-        for widget in self.mapping_tab.winfo_children():
-            widget.destroy()
-
-        # Frame per la gestione dei profili
-        profile_frame = ttk.LabelFrame(self.mapping_tab, text="Gestione Profili")
+    def create_profile_management_tab(self, parent_tab):
+        profile_frame = ttk.LabelFrame(parent_tab, text="Gestione Profili")
         profile_frame.pack(padx=10, pady=10, fill="x")
 
         ttk.Label(profile_frame, text="Profilo Attivo:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
@@ -317,32 +335,32 @@ class ConfigFrame(ttk.Frame):
         self.active_profile_var = tk.StringVar(value=self.profile_data['profilo_attivo'])
 
         profiles = list(self.profile_data['profili'].keys())
-        self.profile_menu = ttk.Combobox(profile_frame, textvariable=self.active_profile_var, values=profiles, state="readonly")
+        self.profile_menu = ttk.Combobox(profile_frame, textvariable=self.active_profile_var, values=profiles, state="readonly", width=40)
         self.profile_menu.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
         self.profile_menu.bind("<<ComboboxSelected>>", self.on_profile_change)
 
-        btn_add = ttk.Button(profile_frame, text="Aggiungi", command=self.add_profile)
-        btn_add.grid(row=0, column=2, padx=5)
-        btn_rename = ttk.Button(profile_frame, text="Rinomina", command=self.rename_profile)
-        btn_rename.grid(row=0, column=3, padx=5)
-        btn_delete = ttk.Button(profile_frame, text="Elimina", command=self.delete_profile)
-        btn_delete.grid(row=0, column=4, padx=5)
+        btn_add = ttk.Button(profile_frame, text="Aggiungi Profilo", command=self.add_profile)
+        btn_add.grid(row=1, column=0, padx=5, pady=10)
+        btn_rename = ttk.Button(profile_frame, text="Rinomina Selezionato", command=self.rename_profile)
+        btn_rename.grid(row=1, column=1, padx=5, pady=10, sticky="w")
+        btn_delete = ttk.Button(profile_frame, text="Elimina Selezionato", command=self.delete_profile)
+        btn_delete.grid(row=1, column=2, padx=5, pady=10, sticky="w")
 
         profile_frame.columnconfigure(1, weight=1)
 
-        # Frame per la mappatura vera e propria
-        self.mapping_frame = ttk.LabelFrame(self.mapping_tab, text="Mappatura Colonne")
-        self.mapping_frame.pack(padx=10, pady=10, fill="both", expand=True)
-
-        self.draw_mapping_entries()
-
     def draw_mapping_entries(self):
-         # Pulisce il frame delle mappature
-        for widget in self.mapping_frame.winfo_children():
+        # This check is crucial for the very first run before the profile var is set
+        if not hasattr(self, 'mapping_tab_frame'):
+            return
+
+        for widget in self.mapping_tab_frame.winfo_children():
             widget.destroy()
 
-        canvas = tk.Canvas(self.mapping_frame)
-        scrollbar = ttk.Scrollbar(self.mapping_frame, orient="vertical", command=canvas.yview)
+        active_profile_name = self.active_profile_var.get()
+        if not active_profile_name: return
+
+        canvas = tk.Canvas(self.mapping_tab_frame)
+        scrollbar = ttk.Scrollbar(self.mapping_tab_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
@@ -354,10 +372,9 @@ class ConfigFrame(ttk.Frame):
         ttk.Label(scrollable_frame, text="Colonna Excel", font=("Arial", 10, "bold")).grid(row=0, column=1, padx=5, pady=5)
         ttk.Label(scrollable_frame, text="Coordinata X", font=("Arial", 10, "bold")).grid(row=0, column=2, padx=5, pady=5)
 
-        active_profile_name = self.active_profile_var.get()
-        current_profile_data = self.profile_data['profili'][active_profile_name]
-
+        current_profile_data = self.profile_data['profili'][active_profile_name]['mappature']
         self.mapping_vars[active_profile_name] = []
+
         for i, item in enumerate(current_profile_data):
             row_vars = {}
             ttk.Label(scrollable_frame, text=item['nome']).grid(row=i + 1, column=0, sticky="w", padx=5, pady=5)
@@ -378,17 +395,58 @@ class ConfigFrame(ttk.Frame):
             row_vars['nome'] = item['nome']
             self.mapping_vars[active_profile_name].append(row_vars)
 
+    def draw_odc_settings(self):
+        for widget in self.odc_tab_frame.winfo_children():
+            widget.destroy()
+
+        active_profile_name = self.active_profile_var.get()
+        if not active_profile_name: return
+
+        # Creiamo un canvas e una scrollbar per rendere la tab scrollabile
+        canvas = tk.Canvas(self.odc_tab_frame)
+        scrollbar = ttk.Scrollbar(self.odc_tab_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Usiamo populate_generic_tab per creare dinamicamente i campi DENTRO il frame scrollabile
+        keys = ("file_e_fogli_excel", "mappatura_colonne_profili", "profili", active_profile_name, "impostazioni_odc")
+        self.populate_generic_tab(scrollable_frame, keys)
+
+
     def on_profile_change(self, event=None):
+        # Ridisegna le tab che dipendono dal profilo
         self.draw_mapping_entries()
+        self.draw_odc_settings()
+
+    def update_profile_list(self):
+        profiles = list(self.profile_data['profili'].keys())
+        self.profile_menu['values'] = profiles
+        if self.active_profile_var.get() not in profiles:
+            self.active_profile_var.set(profiles[0] if profiles else "")
+        self.on_profile_change()
 
     def add_profile(self):
         from tkinter.simpledialog import askstring
         new_name = askstring("Nuovo Profilo", "Inserisci il nome del nuovo profilo:", parent=self.parent)
         if new_name and new_name not in self.profile_data['profili']:
             current_profile_name = self.active_profile_var.get()
-            self.profile_data['profili'][new_name] = [item.copy() for item in self.profile_data['profili'][current_profile_name]]
+            # Copia profonda del profilo selezionato come base
+            import copy
+            self.profile_data['profili'][new_name] = copy.deepcopy(self.profile_data['profili'][current_profile_name])
             self.active_profile_var.set(new_name)
-            self.populate_mapping_tab() # Ridisegna tutto
+            self.update_profile_list()
         elif new_name:
             messagebox.showwarning("Errore", "Un profilo con questo nome esiste già.", parent=self.parent)
 
@@ -400,7 +458,7 @@ class ConfigFrame(ttk.Frame):
         if new_name and new_name not in self.profile_data['profili']:
             self.profile_data['profili'][new_name] = self.profile_data['profili'].pop(old_name)
             self.active_profile_var.set(new_name)
-            self.populate_mapping_tab()
+            self.update_profile_list()
         elif new_name:
             messagebox.showwarning("Errore", "Un profilo con questo nome esiste già.", parent=self.parent)
 
@@ -412,8 +470,7 @@ class ConfigFrame(ttk.Frame):
         profile_to_delete = self.active_profile_var.get()
         if messagebox.askyesno("Conferma Eliminazione", f"Sei sicuro di voler eliminare il profilo '{profile_to_delete}'?", parent=self.parent):
             del self.profile_data['profili'][profile_to_delete]
-            self.active_profile_var.set(list(self.profile_data['profili'].keys())[0]) # Seleziona il primo rimasto
-            self.populate_mapping_tab()
+            self.update_profile_list()
 
     def browse_file(self, var_to_update):
         filepath = filedialog.askopenfilename(title="Seleziona un file", filetypes=(("Tutti i file", "*.*"),))
@@ -459,40 +516,58 @@ class ConfigFrame(ttk.Frame):
         CaptureHelper(self, on_capture)
 
     def update_config_data(self):
-        # Gestione delle tab generiche
+        # Gestione delle tab generiche e dei dati ODC per profilo
         for keys, section_vars in self.vars.items():
-            original_section = self.get_nested_data(keys)
-            if isinstance(original_section, dict):
-                for field, var in section_vars.items():
-                    original_value = original_section[field]
-                    new_value_str = var.get()
-                    try:
-                        if isinstance(original_value, bool):
-                            original_section[field] = (new_value_str.lower() == 'true')
-                        elif isinstance(original_value, int):
-                            original_section[field] = int(new_value_str)
-                        elif isinstance(original_value, float):
-                            original_section[field] = float(new_value_str)
-                        elif isinstance(original_value, list):
-                            original_section[field] = json.loads(new_value_str.replace("'", '"'))
-                        else:
-                            original_section[field] = new_value_str
-                    except (ValueError, json.JSONDecodeError):
-                        original_section[field] = new_value_str
+            # Questo try-except gestisce il caso in cui una sezione (es. un profilo appena eliminato)
+            # esista ancora in self.vars ma non più in self.config_data
+            try:
+                original_section = self.get_nested_data(keys)
+                if isinstance(original_section, dict):
+                    for field, var in section_vars.items():
+                        # Controlla che il campo esista ancora prima di aggiornarlo
+                        if field in original_section:
+                            original_value = original_section[field]
+                            new_value_str = var.get()
+                            try:
+                                if isinstance(original_value, bool):
+                                    original_section[field] = (new_value_str.lower() == 'true')
+                                elif isinstance(original_value, int):
+                                    original_section[field] = int(new_value_str)
+                                elif isinstance(original_value, float):
+                                    original_section[field] = float(new_value_str)
+                                elif isinstance(original_value, list):
+                                    # Gestisce sia le liste JSON valide che le stringhe semplici
+                                    try:
+                                        original_section[field] = json.loads(new_value_str.replace("'", '"'))
+                                    except json.JSONDecodeError:
+                                        original_section[field] = new_value_str # Fallback per stringhe non-JSON
+                                else:
+                                    original_section[field] = new_value_str
+                            except (ValueError, json.JSONDecodeError):
+                                # In caso di errore di conversione, salva come stringa grezza
+                                original_section[field] = new_value_str
+            except KeyError:
+                print(f"Avviso: Sezione di configurazione per le chiavi '{keys}' non trovata durante il salvataggio. Potrebbe essere stata rimossa.")
+                continue
+
 
         # Gestione della tab di mappatura profili
         self.profile_data['profilo_attivo'] = self.active_profile_var.get()
-        for profile_name, profile_vars in self.mapping_vars.items():
-            new_data = []
-            for row_vars in profile_vars:
-                new_item = {'nome': row_vars['nome']}
-                try:
-                    new_item['colonna_excel'] = row_vars['colonna_excel'].get()
-                    new_item['target_x_remoto'] = int(row_vars['target_x_remoto'].get())
-                except (ValueError, KeyError):
-                    pass # Ignora se i campi non sono validi
-                new_data.append(new_item)
-            self.profile_data['profili'][profile_name] = new_data
+        for profile_name, profile_vars_list in self.mapping_vars.items():
+            if profile_name in self.profile_data['profili']:
+                new_mapping_data = []
+                for row_vars in profile_vars_list:
+                    new_item = {'nome': row_vars['nome']}
+                    try:
+                        new_item['colonna_excel'] = row_vars['colonna_excel'].get()
+                        new_item['target_x_remoto'] = int(row_vars['target_x_remoto'].get())
+                        new_mapping_data.append(new_item)
+                    except (ValueError, KeyError):
+                        # Ignora righe con dati non validi
+                        print(f"Avviso: Riga di mappatura non valida per il profilo '{profile_name}' saltata.")
+                        pass
+                self.profile_data['profili'][profile_name]['mappature'] = new_mapping_data
+
 
     def save_config(self):
         self.update_config_data()

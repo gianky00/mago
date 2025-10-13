@@ -99,81 +99,96 @@ def force_excel_recalculation(filepath):
         if excel_instance:
             excel_instance.Quit()
 
-def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordinate_click, nome_popup_log):
+def mostra_dialogo_input(titolo, messaggio):
+    """Funzione helper per mostrare un dialogo di input e ottenere il risultato."""
+    import tkinter as tk
+    from tkinter import simpledialog
+    root = tk.Tk()
+    root.withdraw()
+    risultato = simpledialog.askstring(titolo, messaggio, parent=root)
+    root.destroy()
+    return risultato
+
+def controlla_regione_per_testo(config, odc_cfg, regione, testo_da_cercare, nome_log, click_coords=None):
+    """
+    Funzione OCR generica per controllare una regione alla ricerca di un testo.
+    Se il testo viene trovato, opzionalmente esegue un click.
+    Restituisce True se il testo viene trovato, altrimenti False.
+    """
     if not OCR_AVAILABLE:
-        print(f"ATTENZIONE: OCR non disponibile, impossibile gestire il popup '{nome_popup_log}'.")
+        print(f"ATTENZIONE: OCR non disponibile, impossibile controllare '{nome_log}'.")
         return False
+    # Assicura che la regione sia una tupla di 4 elementi interi
+    try:
+        regione_valida = tuple(map(int, regione))
+        if len(regione_valida) != 4:
+            raise ValueError
+    except (ValueError, TypeError):
+        print(f"ERRORE: La regione per '{nome_log}' non è valida: {regione}. Deve essere una lista/tupla di 4 numeri.")
+        return False
+
     try:
         pytesseract.pytesseract.tesseract_cmd = config['file_e_fogli_excel']['impostazioni_file']['path_tesseract_cmd']
-        time.sleep(config['coordinate_e_dati']['odc']['pausa_attesa_popup'])
-        screenshot = pyautogui.screenshot(region=regione_screenshot)
-        screenshot.save(f"debug_popup_{nome_popup_log}.png")
+        time.sleep(odc_cfg.get('pausa_attesa_popup', 0.5)) # Usa .get per sicurezza
+        screenshot = pyautogui.screenshot(region=regione_valida)
+        screenshot.save(f"debug_popup_{nome_log}.png")
         testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
-        print(f"\n[DEBUG OCR - {nome_popup_log}] Testo estratto: '{testo_estratto.strip()}'")
+        print(f"\n[DEBUG OCR - {nome_log}] Testo estratto: '{testo_estratto.strip()}'")
 
-        if testo_da_cercare.lower() in testo_estratto.lower():
-            print(f"  Testo '{testo_da_cercare}' trovato. Click in corso.")
-            pyautogui.click(coordinate_click)
-            time.sleep(1.0)
+        testo_trovato = testo_da_cercare.lower() in testo_estratto.lower()
+        if testo_trovato:
+            print(f"  --> Testo '{testo_da_cercare}' TROVATO nel popup '{nome_log}'.")
+            if click_coords:
+                pyautogui.click(click_coords)
+                print(f"      Click eseguito su {click_coords}.")
+            time.sleep(0.5) # Pausa dopo il click
             return True
         else:
-            print(f"  ATTENZIONE: Testo '{testo_da_cercare}' NON trovato nel popup '{nome_popup_log}'.")
+            # Questo non è un errore, semplicemente il testo non c'è
+            print(f"  Testo '{testo_da_cercare}' NON trovato nel popup '{nome_log}'.")
             return False
     except Exception as e:
-        print(f"\nERRORE durante la gestione del popup '{nome_popup_log}' con OCR: {e}")
-        traceback.print_exc()
+        # Questo è un errore di esecuzione (es. Tesseract non trovato, regione non valida)
+        print(f"\nERRORE durante la gestione del popup '{nome_log}' con OCR: {e}")
+        # traceback.print_exc() # Può essere decommentato per debug approfondito
         return False
 
-def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa):
+def esegui_procedura_registrazione_odc(config, odc_cfg, gui_cfg, valore_odc_fallito, dati_riga_completa):
+    """Esegue la procedura di registrazione di un nuovo ODC."""
     print("\n--- INIZIO PROCEDURA REGISTRAZIONE ODC ---")
-    odc_cfg = config['coordinate_e_dati']['odc']
-    gui_cfg = config['coordinate_e_dati']['gui']
     try:
         pyautogui.click(odc_cfg['coordinate_popup_tasto_no']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_barra_preferiti']); time.sleep(1.0)
         pyautogui.click(odc_cfg['coordinate_commesse_variante']); time.sleep(1.5)
         pyautogui.click(gui_cfg['coordinate_apertura_nuovo_foglio']); time.sleep(1.0)
 
+        # Inserimento codice e descrizione
         pyautogui.click(odc_cfg['coordinate_casella_commessa'])
         pyautogui.write(str(valore_odc_fallito), interval=0.05)
         pyautogui.press('tab'); time.sleep(0.5)
 
-        descrizione = dati_riga_completa.get('T', '')
+        descrizione = dati_riga_completa.get('T', '') # Assumendo che 'T' sia la colonna descrizione
         pyautogui.click(odc_cfg['coordinate_casella_descrizione'])
         if descrizione:
             pyperclip.copy(str(descrizione))
             pyautogui.hotkey('ctrl', 'v')
         pyautogui.press('tab'); time.sleep(0.5)
 
-        pyautogui.click(odc_cfg['coordinate_casella_commessa_padre'])
-        pyautogui.write("23/134", interval=0.05)
-        pyautogui.press('tab'); time.sleep(0.5)
+        # Gestione popup intermedi durante la registrazione
+        # Nota: questi popup sono gestiti con la logica "trova testo e clicca"
+        controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_attenzione_sal'], odc_cfg['testo_popup_attenzione_sal'], "Attenzione_SAL", click_coords=odc_cfg['coordinate_click_popup_attenzione_sal'])
+        controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_codice_iva'], odc_cfg['testo_popup_codice_iva'], "Codice_IVA", click_coords=odc_cfg['coordinate_click_popup_codice_iva'])
 
-        gestisci_popup_con_ocr(config, tuple(odc_cfg['regione_popup_attenzione_sal']), odc_cfg['testo_popup_attenzione_sal'], tuple(odc_cfg['coordinate_click_popup_attenzione_sal']), "Attenzione_SAL")
-        gestisci_popup_con_ocr(config, tuple(odc_cfg['regione_popup_codice_iva']), odc_cfg['testo_popup_codice_iva'], tuple(odc_cfg['coordinate_click_popup_codice_iva']), "Codice_IVA")
+        # Completamento campi rimanenti
+        pyautogui.click(odc_cfg['coordinate_casella_commessa_padre']); pyautogui.write("23/134", interval=0.05); pyautogui.press('tab'); time.sleep(0.5)
+        pyautogui.press('tab'); time.sleep(0.3); pyautogui.press('tab'); time.sleep(0.3)
+        pyautogui.click(odc_cfg['coordinate_casella_ns_rif']); pyautogui.write("1765", interval=0.05); pyautogui.press('tab'); time.sleep(0.5)
+        pyautogui.click(odc_cfg['coordinate_apri_elenco_gruppo']); time.sleep(1.0); pyautogui.click(odc_cfg['coordinate_casella_gruppo_generico']); time.sleep(0.5)
+        pyautogui.click(odc_cfg['coordinate_casella_resp_commessa']); pyautogui.write("1765", interval=0.05); pyautogui.press('tab'); time.sleep(0.5)
+        pyautogui.click(odc_cfg['coordinate_casella_resp_cantiere']); pyautogui.write("1765", interval=0.05); pyautogui.press('tab'); time.sleep(0.5)
+        pyautogui.click(odc_cfg['coordinate_barra_causali_depositi']); time.sleep(1.0); pyautogui.click(odc_cfg['coordinate_apri_elenco_deposito']); time.sleep(1.0); pyautogui.click(odc_cfg['coordinate_casella_deposito']); time.sleep(0.5)
 
-        pyautogui.press('tab'); time.sleep(0.3)
-        pyautogui.press('tab'); time.sleep(0.3)
-
-        pyautogui.click(odc_cfg['coordinate_casella_ns_rif'])
-        pyautogui.write("1765", interval=0.05)
-        pyautogui.press('tab'); time.sleep(0.5)
-
-        pyautogui.click(odc_cfg['coordinate_apri_elenco_gruppo']); time.sleep(1.0)
-        pyautogui.click(odc_cfg['coordinate_casella_gruppo_generico']); time.sleep(0.5)
-
-        pyautogui.click(odc_cfg['coordinate_casella_resp_commessa'])
-        pyautogui.write("1765", interval=0.05)
-        pyautogui.press('tab'); time.sleep(0.5)
-
-        pyautogui.click(odc_cfg['coordinate_casella_resp_cantiere'])
-        pyautogui.write("1765", interval=0.05)
-        pyautogui.press('tab'); time.sleep(0.5)
-
-        pyautogui.click(odc_cfg['coordinate_barra_causali_depositi']); time.sleep(1.0)
-        pyautogui.click(odc_cfg['coordinate_apri_elenco_deposito']); time.sleep(1.0)
-        pyautogui.click(odc_cfg['coordinate_casella_deposito']); time.sleep(0.5)
-
+        # Salvataggio e chiusura
         pyautogui.click(gui_cfg['coordinate_salvataggio_foglio']); time.sleep(2.0)
         pyautogui.click(odc_cfg['coordinate_chiudi_rapportino_commessa']); time.sleep(1.5)
 
@@ -181,25 +196,6 @@ def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_com
         return True
     except Exception as e:
         print(f"\nERRORE durante la procedura ODC: {e}")
-        traceback.print_exc()
-        return False
-
-def controlla_e_gestisci_popup_odc(config, valore_odc_fallito, dati_riga_completa):
-    if not OCR_AVAILABLE: return False
-    odc_cfg = config['coordinate_e_dati']['odc']
-    try:
-        pytesseract.pytesseract.tesseract_cmd = config['file_e_fogli_excel']['impostazioni_file']['path_tesseract_cmd']
-        time.sleep(odc_cfg['pausa_attesa_popup'])
-        screenshot = pyautogui.screenshot(region=tuple(odc_cfg['regione_screenshot_popup_generico']))
-        screenshot.save("debug_popup_screenshot.png")
-        testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
-        print(f"\n[DEBUG OCR] Testo estratto: '{testo_estratto.strip()}'")
-        if odc_cfg['testo_da_cercare_popup_generico'].lower() in testo_estratto.lower():
-            esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa)
-            return True
-        return False
-    except Exception as e:
-        print(f"\nERRORE durante il controllo OCR del popup: {e}")
         traceback.print_exc()
         return False
 
@@ -258,20 +254,24 @@ def esegui_incolla_e_tab(config, valore_incollato_str, target_coords, cella_exce
 
 # --- FUNZIONE PRINCIPALE DI AUTOMAZIONE ---
 def run_automation(config):
-    # Setup delle variabili dalla nuova configurazione
+    # --- Setup delle configurazioni ---
     file_cfg = config['file_e_fogli_excel']['impostazioni_file']
     param_cfg = config['file_e_fogli_excel']['mappature_colonne_foglio_avanzamento']
-
-    # Carica il profilo di mappatura colonne attivo
-    profili_mapping_cfg = config['file_e_fogli_excel']['mappatura_colonne_profili']
-    profilo_attivo_nome = profili_mapping_cfg['profilo_attivo']
-    col_mapping = profili_mapping_cfg['profili'][profilo_attivo_nome]
-    print(f"INFO: Caricato profilo di mappatura colonne: '{profilo_attivo_nome}'")
-
     gui_cfg = config['coordinate_e_dati']['gui']
-    odc_cfg = config['coordinate_e_dati']['odc']
     timing_cfg = config['timing_e_ritardi']
     tasti_cfg = config['tasti_rapidi']
+
+    # --- Caricamento del profilo attivo ---
+    try:
+        profili_cfg = config['file_e_fogli_excel']['mappatura_colonne_profili']
+        profilo_attivo_nome = profili_cfg['profilo_attivo']
+        profilo_attivo_dati = profili_cfg['profili'][profilo_attivo_nome]
+        col_mapping = profilo_attivo_dati['mappature']
+        odc_cfg = profilo_attivo_dati['impostazioni_odc'] # Carica la configurazione ODC specifica del profilo
+        print(f"INFO: Caricato profilo di automazione: '{profilo_attivo_nome}'")
+    except KeyError as e:
+        print(f"ERRORE CRITICO: Chiave di configurazione mancante nel profilo '{profilo_attivo_nome}': {e}")
+        return
 
     NOME_FILE_EXCEL = os.path.abspath(file_cfg['percorso_file_excel'])
 
@@ -357,19 +357,25 @@ def run_automation(config):
             esegui_incolla_singolo_click(config, str(gui_cfg['dato_ns_riferimento']), gui_cfg['coordinate_cantiere'])
             pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
 
-        # Ciclo sui dati
+        # --- Ciclo sui dati ---
         righe_processate_blocco = 0
-
-        descrizione_mapping = next((item for item in col_mapping if item["nome"] == "Descrizione Attività"), None)
-        matricola_mapping = next((item for item in col_mapping if item["nome"] == "Matricola"), None)
+        try:
+            commessa_mapping = next(item for item in col_mapping if item["nome"] == "Commessa")
+            matricola_mapping = next(item for item in col_mapping if item["nome"] == "Matricola")
+            descrizione_mapping = next((item for item in col_mapping if item["nome"] == "Descrizione Attività"), None)
+        except StopIteration as e:
+            print(f"ERRORE CRITICO: Mappatura per 'Commessa' o 'Matricola' non trovata nel profilo '{profilo_attivo_nome}'. Impossibile continuare.")
+            return
 
         for i, riga_obj in enumerate(task_da_eseguire['dati_buffer']):
             y_target = timing_cfg['y_iniziale_remoto'] + (righe_processate_blocco * timing_cfg['incremento_y_remoto'])
-            print(f"Processando riga {i+1}/{len(task_da_eseguire['dati_buffer'])}...", end='\r'); sys.stdout.flush()
+            print(f"\nProcessando riga {i+1}/{len(task_da_eseguire['dati_buffer'])} (Excel: {riga_obj['riga_excel_num']})...")
 
+            # --- Gestione dei campi principali ---
+            riga_da_saltare = False
             for mapping_item in col_mapping:
-                if mapping_item['nome'] == "Descrizione Attività":
-                    continue
+                if riga_da_saltare: break
+                if mapping_item['nome'] == "Descrizione Attività": continue
 
                 col_lettera = mapping_item['colonna_excel']
                 target_x = mapping_item['target_x_remoto']
@@ -379,20 +385,78 @@ def run_automation(config):
                     val_str = str(val)
                     cella_id = f"{file_cfg['nome_foglio_dati']}!{col_lettera}{riga_obj['riga_excel_num']}"
                     if not esegui_copia_da_buffer_e_verifica(config, val_str, cella_id):
-                        raise Exception(f"Errore copia GUI per {cella_id}")
+                        raise Exception(f"Errore fatale di copia dal buffer per {cella_id}")
 
                     if target_x > 0:
                         esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
 
-                        if col_lettera == col_mapping[0]['colonna_excel']:
-                            if controlla_e_gestisci_popup_odc(config, val_str, riga_obj['dati_colonne']):
-                                print("  Re-inserimento dato dopo gestione popup...")
+                        # --- LOGICA POST-INSERIMENTO ---
+                        # Caso 1: Inserimento Commessa
+                        if mapping_item['nome'] == commessa_mapping['nome']:
+                            if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_odc_gia_registrato_specifico'], "esisten", "ODC_Gia_Registrato_Specifico"):
+                                print("  SUCCESS: ODC già registrato (caso specifico). Salto alla riga successiva.")
+                                pyautogui.click(odc_cfg['coordinate_chiudi_commessa_variante']); time.sleep(0.5)
+                                pyautogui.click(odc_cfg['coordinate_non_salvare_commessa_variante']); time.sleep(0.5)
+                                riga_da_saltare = True; break
+                            if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_odc_gia_registrato'], "già registrata", "ODC_Gia_Registrato_Generico", click_coords=odc_cfg.get('coordinate_chiudi_popup_generico')):
+                                print("  SUCCESS: ODC già registrato (caso generico). Salto alla riga successiva.")
+                                riga_da_saltare = True; break
+                            if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_screenshot_popup_generico'], odc_cfg['testo_da_cercare_popup_generico'], "Non_Trovato_Commessa"):
+                                print("  INFO: Popup 'non trovato' per Commessa. Avvio registrazione nuovo ODC.")
+                                if not esegui_procedura_registrazione_odc(config, odc_cfg, gui_cfg, val_str, riga_obj['dati_colonne']):
+                                    raise Exception("Fallimento procedura registrazione ODC.")
+                                print("  Reinserisco la commessa per continuare il flusso normale.")
                                 esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
+
+                        # Caso 2: Inserimento Matricola
+                        elif mapping_item['nome'] == matricola_mapping['nome']:
+                            matricola_corretta = False
+                            while not matricola_corretta:
+                                # Check 1: Matricola disabilitata
+                                if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_matricola_disabilitata'], "disabilitata", "Matricola_Disabilitata"):
+                                    pyautogui.press('escape') # Chiude il popup di matricola disabilitata
+                                    nuova_matricola = mostra_dialogo_input("Matricola Disabilitata", f"La matricola {val_str} è disabilitata.\nInserisci la nuova matricola corretta:")
+                                    if nuova_matricola:
+                                        val_str = nuova_matricola # Sovrascrive il valore per il resto del ciclo
+                                        print(f"  INPUT: Nuova matricola '{val_str}' fornita. Riprovo l'inserimento.")
+                                        esegui_incolla_e_tab(config, val_str, (target_x, y_target), "matricola_sostitutiva")
+                                        continue # Ritorna all'inizio del while per riverificare la nuova matricola
+                                    else:
+                                        print("  WARNING: Nessuna nuova matricola fornita. Riga saltata.")
+                                        riga_da_saltare = True; break
+
+                                # Check 2: Matricola non trovata (1° tentativo)
+                                if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_screenshot_popup_generico'], odc_cfg['testo_da_cercare_popup_generico'], "Non_Trovato_Matricola_1"):
+                                    print("  WARNING: Popup 'non trovato' per Matricola. Riprovo (1/2)...")
+                                    esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id) # Riprova
+
+                                    # Check 2.1: Matricola non trovata (2° tentativo)
+                                    if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_screenshot_popup_generico'], odc_cfg['testo_da_cercare_popup_generico'], "Non_Trovato_Matricola_2"):
+                                        print("  ERROR: Popup 'non trovato' anche al secondo tentativo.")
+                                        pyautogui.click(odc_cfg['coordinate_popup_tasto_no']) # Clicca "No"
+                                        col_nome = odc_cfg.get('colonna_nome_dipendente', 'F')
+                                        nome_dipendente = riga_obj['dati_colonne'].get(col_nome, '[NOME NON TROVATO]')
+                                        nuova_matricola_utente = mostra_dialogo_input("Errore Matricola", f"Matricola errata per {nome_dipendente}.\nFornisci la Matricola corretta:")
+                                        if nuova_matricola_utente:
+                                            val_str = nuova_matricola_utente
+                                            print(f"  INPUT: Nuova matricola '{val_str}' fornita. Riprovo l'inserimento.")
+                                            esegui_incolla_e_tab(config, val_str, (target_x, y_target), "matricola_corretta_utente")
+                                            continue # Ritorna all'inizio del while per riverificare
+                                        else:
+                                            print("  WARNING: Riga saltata su richiesta utente dopo errore matricola.")
+                                            riga_da_saltare = True; break
+                                    else:
+                                        matricola_corretta = True # OK al secondo tentativo
+                                else:
+                                    matricola_corretta = True # OK al primo tentativo
+
+                            if riga_da_saltare: break
                 else:
-                     if target_x > 0:
+                    if target_x > 0:
                         pyautogui.press('tab'); time.sleep(timing_cfg['ritardo_dopo_tab'])
 
-                if matricola_mapping and mapping_item['nome'] == matricola_mapping['nome'] and descrizione_mapping:
+                # Inserimento Descrizione Attività (se presente e se la matricola è stata appena inserita)
+                if not riga_da_saltare and mapping_item['nome'] == matricola_mapping['nome'] and descrizione_mapping:
                     val_desc = riga_obj['dati_colonne'].get(descrizione_mapping['colonna_excel'])
                     if val_desc is not None:
                         val_str_desc = str(val_desc)
@@ -402,12 +466,13 @@ def run_automation(config):
                         if descrizione_mapping['target_x_remoto'] > 0:
                             esegui_incolla_e_tab(config, val_str_desc, (descrizione_mapping['target_x_remoto'], y_target), cella_id_desc)
 
-            righe_processate_blocco += 1
-            if righe_processate_blocco >= timing_cfg['max_righe_per_blocco_tab']:
-                print("\n  Raggiunto limite blocco, premo Tab...")
-                for _ in range(timing_cfg['pressioni_tasto_tab']): pyautogui.press('tab', interval=timing_cfg['intervallo_pressioni_tab'])
-                righe_processate_blocco = 0
-                time.sleep(timing_cfg['pausa_dopo_blocco_tab'])
+            if not riga_da_saltare:
+                righe_processate_blocco += 1
+                if righe_processate_blocco >= timing_cfg['max_righe_per_blocco_tab']:
+                    print("\n  Raggiunto limite blocco, premo Tab per cambiare pagina...")
+                    for _ in range(timing_cfg['pressioni_tasto_tab']): pyautogui.press('tab', interval=timing_cfg['intervallo_pressioni_tab'])
+                    righe_processate_blocco = 0
+                    time.sleep(timing_cfg['pausa_dopo_blocco_tab'])
         print("\n--- FINE AZIONI GUI ---")
 
     except Exception as e:

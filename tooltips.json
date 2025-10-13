@@ -11,43 +11,42 @@
       "colonna_riga_fine": "Lettera della colonna nel foglio 'Avanzamento' che indica la riga di fine dei dati da leggere nel foglio 'Dati'.",
       "colonna_data_rapporto": "Lettera della colonna nel foglio 'Avanzamento' che contiene la data da inserire nel rapportino."
     },
-    "mappatura_colonne_foglio_dati": "Mappatura tra i nomi dei campi, le colonne nel foglio 'Dati' e la coordinata X di destinazione nell'applicazione remota. Non modificare direttamente qui, la struttura è fissa."
-  },
-  "coordinate_e_dati": {
-    "gui": {
-      "coordinate_data_rapporto": "Coordinate (X, Y) del campo 'Data Rapporto' nell'applicazione remota.",
-      "coordinate_cantiere": "Coordinate (X, Y) del campo 'Cantiere' o 'Ns. Riferimento' nell'applicazione remota.",
-      "dato_ns_riferimento": "Valore di testo fisso da inserire nel campo 'Ns. Riferimento' (es. 'ISAB SUD').",
-      "coordinate_apertura_nuovo_foglio": "Coordinate (X, Y) del pulsante o menu per creare un nuovo foglio/rapportino.",
-      "coordinate_salvataggio_foglio": "Coordinate (X, Y) del pulsante o menu per salvare il foglio/rapportino.",
-      "coordinate_elimina_flag_stampa": "Coordinate (X, Y) della casella di controllo per disabilitare la stampa.",
-      "coordinate_pulsante_ok": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' finale."
-    },
-    "odc": {
-      "regione_screenshot_popup_generico": "Regione (X, Y, Larghezza, Altezza) dello schermo dove appare il popup 'ODC non trovato'.",
-      "testo_da_cercare_popup_generico": "Testo da cercare con OCR all'interno del popup per confermarne la presenza (es. 'non trovato').",
-      "pausa_attesa_popup": "Secondi di attesa prima di effettuare lo screenshot del popup, per dare tempo alla finestra di apparire.",
-      "coordinate_popup_tasto_no": "Coordinate (X, Y) del pulsante 'No' sul popup che chiede di creare un nuovo ODC.",
-      "coordinate_barra_preferiti": "Coordinate (X, Y) per cliccare sulla barra dei preferiti nell'applicazione remota.",
-      "coordinate_commesse_variante": "Coordinate (X, Y) per selezionare 'Commesse in Variante' o simile.",
-      "coordinate_casella_commessa": "Coordinate (X, Y) del campo 'Commessa' nella finestra di creazione ODC.",
-      "coordinate_casella_descrizione": "Coordinate (X, Y) del campo 'Descrizione' nella finestra di creazione ODC.",
-      "coordinate_casella_commessa_padre": "Coordinate (X, Y) del campo 'Commessa Padre' nella finestra di creazione ODC.",
-      "coordinate_casella_ns_rif": "Coordinate (X, Y) del campo 'Ns. Rif.' nella finestra di creazione ODC.",
-      "coordinate_apri_elenco_gruppo": "Coordinate (X, Y) del pulsante per aprire l'elenco dei gruppi.",
-      "coordinate_casella_gruppo_generico": "Coordinate (X, Y) per selezionare il gruppo generico dall'elenco.",
-      "coordinate_casella_resp_commessa": "Coordinate (X, Y) del campo 'Responsabile Commessa'.",
-      "coordinate_casella_resp_cantiere": "Coordinate (X, Y) del campo 'Responsabile Cantiere'.",
-      "coordinate_barra_causali_depositi": "Coordinate (X, Y) per accedere alla sezione 'Causali/Depositi'.",
-      "coordinate_apri_elenco_deposito": "Coordinate (X, Y) del pulsante per aprire l'elenco dei depositi.",
-      "coordinate_casella_deposito": "Coordinate (X, Y) per selezionare il deposito dall'elenco.",
-      "coordinate_chiudi_rapportino_commessa": "Coordinate (X, Y) del pulsante per chiudere la finestra di creazione ODC.",
-      "regione_popup_attenzione_sal": "Regione (X, Y, Larghezza, Altezza) del popup 'Attenzione SAL'.",
-      "testo_popup_attenzione_sal": "Testo da cercare con OCR nel popup 'Attenzione SAL'.",
-      "coordinate_click_popup_attenzione_sal": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup 'Attenzione SAL'.",
-      "regione_popup_codice_iva": "Regione (X, Y, Larghezza, Altezza) del popup relativo al codice IVA.",
-      "testo_popup_codice_iva": "Testo da cercare con OCR nel popup del codice IVA.",
-      "coordinate_click_popup_codice_iva": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup del codice IVA."
+    "mappatura_colonne_profili": {
+      "profili": {
+        "impostazioni_odc": {
+          "regione_screenshot_popup_generico": "Regione (X, Y, Larghezza, Altezza) dello schermo dove appare il popup 'non trovato'. Cruciale per rilevare errori di inserimento Matricola o l'inizio della creazione di un nuovo ODC.",
+          "testo_da_cercare_popup_generico": "Testo esatto (sensibile a maiuscole/minuscole) che l'OCR deve trovare per confermare il popup 'non trovato'. Modificare solo se il testo del popup cambia.",
+          "pausa_attesa_popup": "Secondi di attesa prima di effettuare lo screenshot del popup. Aumentare leggermente se i popup non vengono rilevati a causa della lentezza dell'applicazione remota.",
+          "coordinate_popup_tasto_no": "Coordinate (X, Y) del pulsante 'No' sul popup 'non trovato'. Usato per annullare la creazione di un ODC quando la Matricola è errata.",
+          "coordinate_barra_preferiti": "Coordinate (X, Y) per cliccare sulla barra dei preferiti nell'applicazione remota per avviare la creazione di un ODC.",
+          "coordinate_commesse_variante": "Coordinate (X, Y) per selezionare l'opzione 'Commesse in Variante' (o simile) dal menu dei preferiti.",
+          "coordinate_casella_commessa": "Coordinate (X, Y) del campo dove inserire il codice della Commessa nella finestra di creazione ODC.",
+          "coordinate_casella_descrizione": "Coordinate (X, Y) del campo 'Descrizione' nella finestra di creazione ODC.",
+          "coordinate_casella_commessa_padre": "Coordinate (X, Y) del campo 'Commessa Padre' nella finestra di creazione ODC.",
+          "coordinate_casella_ns_rif": "Coordinate (X, Y) del campo 'Ns. Rif.' nella finestra di creazione ODC.",
+          "coordinate_apri_elenco_gruppo": "Coordinate (X, Y) del pulsante per aprire l'elenco dei gruppi ODC.",
+          "coordinate_casella_gruppo_generico": "Coordinate (X, Y) per selezionare il gruppo 'GENERICO' dall'elenco.",
+          "coordinate_casella_resp_commessa": "Coordinate (X, Y) del campo 'Responsabile Commessa' nella finestra di creazione ODC.",
+          "coordinate_casella_resp_cantiere": "Coordinate (X, Y) del campo 'Responsabile Cantiere' nella finestra di creazione ODC.",
+          "coordinate_barra_causali_depositi": "Coordinate (X, Y) per cliccare sulla scheda/sezione 'Causali e Depositi' nella finestra di creazione ODC.",
+          "coordinate_apri_elenco_deposito": "Coordinate (X, Y) del pulsante per aprire l'elenco dei depositi.",
+          "coordinate_casella_deposito": "Coordinate (X, Y) per selezionare il deposito corretto dall'elenco.",
+          "coordinate_chiudi_rapportino_commessa": "Coordinate (X, Y) del pulsante per chiudere la finestra di creazione ODC dopo il salvataggio.",
+          "regione_popup_attenzione_sal": "Regione (X, Y, Larghezza, Altezza) del popup 'Attenzione SAL' che può apparire durante la creazione di un ODC.",
+          "testo_popup_attenzione_sal": "Testo chiave da cercare nel popup 'Attenzione SAL' per confermarne la presenza.",
+          "coordinate_click_popup_attenzione_sal": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup 'Attenzione SAL'.",
+          "regione_popup_codice_iva": "Regione (X, Y, Larghezza, Altezza) del popup informativo sul codice IVA.",
+          "testo_popup_codice_iva": "Testo chiave da cercare nel popup del codice IVA per confermarne la presenza.",
+          "coordinate_click_popup_codice_iva": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup del codice IVA.",
+          "regione_popup_matricola_disabilitata": "Regione (X, Y, Larghezza, Altezza) dove appare il popup che segnala una matricola disabilitata. Se non impostata, questo controllo viene saltato.",
+          "regione_popup_odc_gia_registrato": "Regione (X, Y, Larghezza, Altezza) dove appare il popup generico che segnala che la commessa è 'già registrata'. Questo è un caso di successo.",
+          "colonna_nome_dipendente": "Lettera della colonna nel foglio 'Dati' che contiene il nome del dipendente, da mostrare all'utente in caso di errore sulla matricola.",
+          "regione_popup_odc_gia_registrato_specifico": "Regione (X, Y, Larghezza, Altezza) del popup specifico 'COMMESSA già esistente'. Ha la precedenza su quello generico.",
+          "coordinate_chiudi_commessa_variante": "Coordinate (X, Y) del pulsante 'Chiudi' nella finestra 'Commesse in Variante', usato per annullare dopo aver rilevato un ODC già registrato.",
+          "coordinate_non_salvare_commessa_variante": "Coordinate (X, Y) del pulsante 'Non Salvare' che appare dopo aver chiuso la finestra 'Commesse in Variante'.",
+          "coordinate_chiudi_popup_generico": "Coordinate (X, Y) del pulsante 'OK' o 'Chiudi' sul popup generico di 'ODC già registrato'."
+        }
+      }
     }
   },
   "timing_e_ritardi": {

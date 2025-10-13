@@ -4,6 +4,7 @@
       "percorso_file_excel": "C:\\Users\\Coemi\\Desktop\\PERFETTO\\Dataease_ALLEGRETTI_02-2025.xlsm",
       "nome_foglio_dati": "DataEasePyton",
       "nome_foglio_avanzamento": "ParametriPyton",
+      "colonna_nome_dipendente_foglio_dati": "F",
       "forzare_ricalcolo_excel": false,
       "path_tesseract_cmd": "C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
     },

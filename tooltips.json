@@ -3,7 +3,8 @@
     "impostazioni_file": {
       "percorso_file_excel": "Percorso completo del file Excel che contiene i dati e i parametri dell'automazione.",
       "nome_foglio_dati": "Nome del foglio di lavoro Excel contenente i dati da elaborare (es. 'DataEasePyton').",
-      "nome_foglio_avanzamento": "Nome del foglio di lavoro Excel che contiene i parametri di controllo del processo (es. 'ParametriPyton')."
+      "nome_foglio_avanzamento": "Nome del foglio di lavoro Excel che contiene i parametri di controllo del processo (es. 'ParametriPyton').",
+      "colonna_nome_dipendente_foglio_dati": "Lettera della colonna nel foglio 'Dati' che contiene il nome del dipendente, usato nei messaggi di errore per una migliore identificazione."
     },
     "mappature_colonne_foglio_avanzamento": {
       "colonna_stato": "Lettera della colonna nel foglio 'Avanzamento' che indica lo stato del task (es. 'D' per 'DA COMPLETARE').",

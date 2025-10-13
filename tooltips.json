@@ -3,8 +3,7 @@
     "impostazioni_file": {
       "percorso_file_excel": "Percorso completo del file Excel che contiene i dati e i parametri dell'automazione.",
       "nome_foglio_dati": "Nome del foglio di lavoro Excel contenente i dati da elaborare (es. 'DataEasePyton').",
-      "nome_foglio_avanzamento": "Nome del foglio di lavoro Excel che contiene i parametri di controllo del processo (es. 'ParametriPyton').",
-      "colonna_nome_dipendente_foglio_dati": "Lettera della colonna nel foglio 'Dati' che contiene il nome del dipendente, usato nei messaggi di errore per una migliore identificazione."
+      "nome_foglio_avanzamento": "Nome del foglio di lavoro Excel che contiene i parametri di controllo del processo (es. 'ParametriPyton')."
     },
     "mappature_colonne_foglio_avanzamento": {
       "colonna_stato": "Lettera della colonna nel foglio 'Avanzamento' che indica lo stato del task (es. 'D' per 'DA COMPLETARE').",
@@ -48,15 +47,7 @@
       "coordinate_click_popup_attenzione_sal": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup 'Attenzione SAL'.",
       "regione_popup_codice_iva": "Regione (X, Y, Larghezza, Altezza) del popup relativo al codice IVA.",
       "testo_popup_codice_iva": "Testo da cercare con OCR nel popup del codice IVA.",
-      "coordinate_click_popup_codice_iva": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup del codice IVA.",
-      "regione_popup_odc_gia_registrato": "Regione dello schermo dove appare il popup 'Commessa già registrata' durante la creazione di un ODC.",
-      "testo_popup_odc_gia_registrato": "Testo univoco da cercare nel popup per confermare che l'ODC è già registrato (es. 'già registrata').",
-      "coordinate_chiudi_commessa_variante": "Coordinate (X, Y) del pulsante per chiudere la finestra della commessa in variante (di solito una 'X' o 'Annulla').",
-      "coordinate_non_salvare_commessa_variante": "Coordinate (X, Y) del pulsante 'Non Salvare' o 'No' che appare dopo aver tentato di chiudere la finestra della commessa.",
-      "regione_popup_matricola_disabilitata": "La regione dello schermo [sinistra, alto, larghezza, altezza] in cui lo script cercherà il popup che segnala una matricola disabilitata.",
-      "testo_popup_matricola_disabilitata": "Una parte di testo univoca (es. 'disattivo', 'non attivo') presente nel popup della matricola disabilitata. Serve per confermare che si tratta del popup corretto.",
-      "coordinate_click_popup_matricola_disabilitata_ok": "Le coordinate (X, Y) del pulsante 'OK' da premere nel popup della matricola disabilitata.",
-      "nome_foglio_matricole": "Il nome del foglio Excel (es. 'MATRICOLE') che contiene l'elenco delle matricole. Verrà usato per sostituire la matricola vecchia con quella nuova fornita dall'utente."
+      "coordinate_click_popup_codice_iva": "Coordinate (X, Y) del pulsante 'OK' o 'Conferma' sul popup del codice IVA."
     }
   },
   "timing_e_ritardi": {

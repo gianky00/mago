@@ -154,7 +154,7 @@ class ConfigFrame(ttk.Frame):
 
         self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
         self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Mappature Colonne Foglio Avanzamento")
-        self.create_mapping_tab(excel_notebook, ("file_e_fogli_excel", "mappatura_colonne_foglio_dati"), "Mappatura Colonne Foglio Dati")
+        self.create_mapping_tab(excel_notebook, ("file_e_fogli_excel", "mappatura_colonne_profili"), "Profili Mappatura Colonne")
 
         # --- Main Tab 2: Coordinate e Dati ---
         coords_tab = ttk.Frame(main_notebook)
@@ -297,11 +297,52 @@ class ConfigFrame(ttk.Frame):
         return data
 
     def create_mapping_tab(self, notebook, keys, title):
-        tab = ttk.Frame(notebook)
-        notebook.add(tab, text=title)
+        self.mapping_tab = ttk.Frame(notebook)
+        notebook.add(self.mapping_tab, text=title)
+        self.mapping_vars = {}
+        self.populate_mapping_tab()
 
-        canvas = tk.Canvas(tab)
-        scrollbar = ttk.Scrollbar(tab, orient="vertical", command=canvas.yview)
+    def populate_mapping_tab(self):
+        # Pulisce la tab prima di ridisegnarla
+        for widget in self.mapping_tab.winfo_children():
+            widget.destroy()
+
+        # Frame per la gestione dei profili
+        profile_frame = ttk.LabelFrame(self.mapping_tab, text="Gestione Profili")
+        profile_frame.pack(padx=10, pady=10, fill="x")
+
+        ttk.Label(profile_frame, text="Profilo Attivo:").grid(row=0, column=0, padx=5, pady=5, sticky="w")
+
+        self.profile_data = self.get_nested_data(("file_e_fogli_excel", "mappatura_colonne_profili"))
+        self.active_profile_var = tk.StringVar(value=self.profile_data['profilo_attivo'])
+
+        profiles = list(self.profile_data['profili'].keys())
+        self.profile_menu = ttk.Combobox(profile_frame, textvariable=self.active_profile_var, values=profiles, state="readonly")
+        self.profile_menu.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+        self.profile_menu.bind("<<ComboboxSelected>>", self.on_profile_change)
+
+        btn_add = ttk.Button(profile_frame, text="Aggiungi", command=self.add_profile)
+        btn_add.grid(row=0, column=2, padx=5)
+        btn_rename = ttk.Button(profile_frame, text="Rinomina", command=self.rename_profile)
+        btn_rename.grid(row=0, column=3, padx=5)
+        btn_delete = ttk.Button(profile_frame, text="Elimina", command=self.delete_profile)
+        btn_delete.grid(row=0, column=4, padx=5)
+
+        profile_frame.columnconfigure(1, weight=1)
+
+        # Frame per la mappatura vera e propria
+        self.mapping_frame = ttk.LabelFrame(self.mapping_tab, text="Mappatura Colonne")
+        self.mapping_frame.pack(padx=10, pady=10, fill="both", expand=True)
+
+        self.draw_mapping_entries()
+
+    def draw_mapping_entries(self):
+         # Pulisce il frame delle mappature
+        for widget in self.mapping_frame.winfo_children():
+            widget.destroy()
+
+        canvas = tk.Canvas(self.mapping_frame)
+        scrollbar = ttk.Scrollbar(self.mapping_frame, orient="vertical", command=canvas.yview)
         scrollable_frame = ttk.Frame(canvas)
         scrollable_frame.bind("<Configure>", lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
         canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
@@ -309,43 +350,70 @@ class ConfigFrame(ttk.Frame):
         canvas.pack(side="left", fill="both", expand=True)
         scrollbar.pack(side="right", fill="y")
 
-        self.populate_mapping_tab(scrollable_frame, keys)
+        ttk.Label(scrollable_frame, text="Nome Campo", font=("Arial", 10, "bold")).grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        ttk.Label(scrollable_frame, text="Colonna Excel", font=("Arial", 10, "bold")).grid(row=0, column=1, padx=5, pady=5)
+        ttk.Label(scrollable_frame, text="Coordinata X", font=("Arial", 10, "bold")).grid(row=0, column=2, padx=5, pady=5)
 
-    def populate_mapping_tab(self, parent, keys):
-        frame = ttk.LabelFrame(parent, text="Mappatura")
-        frame.pack(padx=10, pady=10, fill="x", expand=True)
+        active_profile_name = self.active_profile_var.get()
+        current_profile_data = self.profile_data['profili'][active_profile_name]
 
-        try:
-            data_section = self.get_nested_data(keys)
-        except KeyError:
-            ttk.Label(frame, text=f"Sezione non trovata.").pack()
-            return
-
-        ttk.Label(frame, text="Nome Campo", font=("Arial", 10, "bold")).grid(row=0, column=0, padx=5, pady=5, sticky="w")
-        ttk.Label(frame, text="Colonna Excel", font=("Arial", 10, "bold")).grid(row=0, column=1, padx=5, pady=5)
-        ttk.Label(frame, text="Coordinata X", font=("Arial", 10, "bold")).grid(row=0, column=2, padx=5, pady=5)
-
-        self.vars[keys] = []
-        for i, item in enumerate(data_section):
+        self.mapping_vars[active_profile_name] = []
+        for i, item in enumerate(current_profile_data):
             row_vars = {}
-            ttk.Label(frame, text=item['nome']).grid(row=i + 1, column=0, sticky="w", padx=5, pady=5)
+            ttk.Label(scrollable_frame, text=item['nome']).grid(row=i + 1, column=0, sticky="w", padx=5, pady=5)
 
             var_col = tk.StringVar(value=item['colonna_excel'])
             row_vars['colonna_excel'] = var_col
-            ttk.Entry(frame, textvariable=var_col, width=15).grid(row=i + 1, column=1, padx=5, pady=5)
+            ttk.Entry(scrollable_frame, textvariable=var_col, width=15).grid(row=i + 1, column=1, padx=5, pady=5)
 
             var_x = tk.StringVar(value=item['target_x_remoto'])
             row_vars['target_x_remoto'] = var_x
 
-            x_entry_frame = ttk.Frame(frame)
+            x_entry_frame = ttk.Frame(scrollable_frame)
             x_entry_frame.grid(row=i + 1, column=2, padx=5, pady=5, sticky="ew")
-
             ttk.Entry(x_entry_frame, textvariable=var_x, width=10).pack(side="left")
             btn_capture = ttk.Button(x_entry_frame, text="Cattura", command=lambda v=var_x: self.start_capture_x_only(v))
             btn_capture.pack(side="left", padx=5)
 
             row_vars['nome'] = item['nome']
-            self.vars[keys].append(row_vars)
+            self.mapping_vars[active_profile_name].append(row_vars)
+
+    def on_profile_change(self, event=None):
+        self.draw_mapping_entries()
+
+    def add_profile(self):
+        from tkinter.simpledialog import askstring
+        new_name = askstring("Nuovo Profilo", "Inserisci il nome del nuovo profilo:", parent=self.parent)
+        if new_name and new_name not in self.profile_data['profili']:
+            current_profile_name = self.active_profile_var.get()
+            self.profile_data['profili'][new_name] = [item.copy() for item in self.profile_data['profili'][current_profile_name]]
+            self.active_profile_var.set(new_name)
+            self.populate_mapping_tab() # Ridisegna tutto
+        elif new_name:
+            messagebox.showwarning("Errore", "Un profilo con questo nome esiste già.", parent=self.parent)
+
+    def rename_profile(self):
+        from tkinter.simpledialog import askstring
+        old_name = self.active_profile_var.get()
+        if not old_name: return
+        new_name = askstring("Rinomina Profilo", f"Inserisci il nuovo nome per '{old_name}':", parent=self.parent)
+        if new_name and new_name not in self.profile_data['profili']:
+            self.profile_data['profili'][new_name] = self.profile_data['profili'].pop(old_name)
+            self.active_profile_var.set(new_name)
+            self.populate_mapping_tab()
+        elif new_name:
+            messagebox.showwarning("Errore", "Un profilo con questo nome esiste già.", parent=self.parent)
+
+    def delete_profile(self):
+        if len(self.profile_data['profili']) <= 1:
+            messagebox.showwarning("Impossibile Eliminare", "Non puoi eliminare l'ultimo profilo rimasto.", parent=self.parent)
+            return
+
+        profile_to_delete = self.active_profile_var.get()
+        if messagebox.askyesno("Conferma Eliminazione", f"Sei sicuro di voler eliminare il profilo '{profile_to_delete}'?", parent=self.parent):
+            del self.profile_data['profili'][profile_to_delete]
+            self.active_profile_var.set(list(self.profile_data['profili'].keys())[0]) # Seleziona il primo rimasto
+            self.populate_mapping_tab()
 
     def browse_file(self, var_to_update):
         filepath = filedialog.askopenfilename(title="Seleziona un file", filetypes=(("Tutti i file", "*.*"),))
@@ -391,22 +459,10 @@ class ConfigFrame(ttk.Frame):
         CaptureHelper(self, on_capture)
 
     def update_config_data(self):
+        # Gestione delle tab generiche
         for keys, section_vars in self.vars.items():
             original_section = self.get_nested_data(keys)
-
-            if isinstance(original_section, list):
-                new_data = []
-                for row_vars in section_vars:
-                    new_item = {'nome': row_vars['nome']}
-                    try:
-                        new_item['colonna_excel'] = row_vars['colonna_excel'].get()
-                        new_item['target_x_remoto'] = int(row_vars['target_x_remoto'].get())
-                    except (ValueError, KeyError):
-                        pass
-                    new_data.append(new_item)
-                self.set_nested_data(keys, new_data)
-
-            elif isinstance(original_section, dict):
+            if isinstance(original_section, dict):
                 for field, var in section_vars.items():
                     original_value = original_section[field]
                     new_value_str = var.get()
@@ -423,6 +479,20 @@ class ConfigFrame(ttk.Frame):
                             original_section[field] = new_value_str
                     except (ValueError, json.JSONDecodeError):
                         original_section[field] = new_value_str
+
+        # Gestione della tab di mappatura profili
+        self.profile_data['profilo_attivo'] = self.active_profile_var.get()
+        for profile_name, profile_vars in self.mapping_vars.items():
+            new_data = []
+            for row_vars in profile_vars:
+                new_item = {'nome': row_vars['nome']}
+                try:
+                    new_item['colonna_excel'] = row_vars['colonna_excel'].get()
+                    new_item['target_x_remoto'] = int(row_vars['target_x_remoto'].get())
+                except (ValueError, KeyError):
+                    pass # Ignora se i campi non sono validi
+                new_data.append(new_item)
+            self.profile_data['profili'][profile_name] = new_data
 
     def save_config(self):
         self.update_config_data()

@@ -5,3 +5,4 @@ keyboard
 Pillow
 pytesseract
 screeninfo
+pywin32

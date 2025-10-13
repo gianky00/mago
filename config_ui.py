@@ -152,44 +152,46 @@ class ConfigFrame(ttk.Frame):
         excel_notebook = ttk.Notebook(excel_tab)
         excel_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        # --- Step 1: Create all main tab frames first ---
-        self.profiles_tab = ttk.Frame(main_notebook)
-        file_mappature_tab = ttk.Frame(main_notebook)
-        coords_tab = ttk.Frame(main_notebook)
-        other_tab = ttk.Frame(main_notebook)
+        # --- Step 1: Create all main tab containers ---
+        profiles_tab_container = ttk.Frame(main_notebook)
+        file_mappature_container = ttk.Frame(main_notebook)
+        coords_container = ttk.Frame(main_notebook)
+        other_container = ttk.Frame(main_notebook)
 
-        main_notebook.add(self.profiles_tab, text="Profili")
-        main_notebook.add(file_mappature_tab, text="File e Mappature")
-        main_notebook.add(coords_tab, text="Coordinate GUI")
-        main_notebook.add(other_tab, text="Altre Impostazioni")
+        main_notebook.add(profiles_tab_container, text="Profili")
+        main_notebook.add(file_mappature_container, text="File e Mappature")
+        main_notebook.add(coords_container, text="Coordinate GUI")
+        main_notebook.add(other_container, text="Altre Impostazioni")
 
-        # --- Step 2: Create inner notebooks and frames ---
-        file_mappature_notebook = ttk.Notebook(file_mappature_tab)
+        # --- Step 2: Create the inner notebook for the "File e Mappature" tab ---
+        file_mappature_notebook = ttk.Notebook(file_mappature_container)
         file_mappature_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        other_notebook = ttk.Notebook(other_tab)
-        other_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+        # --- Step 3: Initialize the specific tab frames that are dependencies *before* populating ---
+        self.mapping_tab_frame = ttk.Frame(file_mappature_notebook)
+        self.odc_tab_frame = ttk.Frame(file_mappature_notebook)
+        self.mapping_vars = {} # Initialize here
 
-        # --- Step 3: Populate the tabs now that all frames exist ---
-        # Main Tab 1: Profili
-        self.create_profile_management_tab(self.profiles_tab)
+        # --- Step 4: Now, populate all the tabs in the correct order ---
+        # Populate Profili (which depends on other tabs existing)
+        self.create_profile_management_tab(profiles_tab_container)
 
-        # Main Tab 2: File e Mappature
+        # Populate File e Mappature
         self.create_generic_tab(file_mappature_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
         self.create_generic_tab(file_mappature_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Colonne Foglio Avanzamento")
-        self.create_mapping_tab(file_mappature_notebook, "Mappatura Colonne per Profilo")
-        self.create_odc_settings_tab(file_mappature_notebook, "Impostazioni ODC per Profilo")
 
-        # Main Tab 3: Coordinate GUI
-        self.create_generic_tab(coords_tab, ("coordinate_e_dati", "gui"), "GUI")
+        file_mappature_notebook.add(self.mapping_tab_frame, text="Mappatura Colonne per Profilo")
+        self.draw_mapping_entries()
 
+        file_mappature_notebook.add(self.odc_tab_frame, text="Impostazioni ODC per Profilo")
+        self.draw_odc_settings()
 
-        # --- Main Tab 4: Altre Impostazioni ---
-        other_tab = ttk.Frame(main_notebook)
-        main_notebook.add(other_tab, text="Altre Impostazioni")
-        other_notebook = ttk.Notebook(other_tab)
+        # Populate Coordinate GUI
+        self.create_generic_tab(coords_container, ("coordinate_e_dati", "gui"), "GUI")
+
+        # Populate Altre Impostazioni
+        other_notebook = ttk.Notebook(other_container)
         other_notebook.pack(pady=5, padx=5, expand=True, fill="both")
-
         self.create_generic_tab(other_notebook, ("timing_e_ritardi",), "Timing")
         self.create_generic_tab(other_notebook, ("pulizia_appunti",), "Pulizia Appunti")
         self.create_generic_tab(other_notebook, ("tasti_rapidi",), "Tasti Rapidi")
@@ -352,18 +354,6 @@ class ConfigFrame(ttk.Frame):
         # Pre-carica l'elenco iniziale
         self.update_profile_list()
 
-
-    def create_mapping_tab(self, notebook, title):
-        self.mapping_tab_frame = ttk.Frame(notebook)
-        notebook.add(self.mapping_tab_frame, text=title)
-        self.mapping_vars = {}
-        self.draw_mapping_entries()
-
-    def create_odc_settings_tab(self, notebook, title):
-        self.odc_tab_frame = ttk.Frame(notebook)
-        notebook.add(self.odc_tab_frame, text=title)
-        # Questa tab verrà popolata dinamicamente in on_profile_change
-        self.draw_odc_settings()
 
     def draw_mapping_entries(self):
         for widget in self.mapping_tab_frame.winfo_children():

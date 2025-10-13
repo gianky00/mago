@@ -69,48 +69,6 @@ def restart_script(config):
     subprocess.Popen([python_executable, script_to_run] + sys.argv[1:])
     sys.exit(0)
 
-def aggiorna_matricola_excel(config, vecchia_matricola, nuova_matricola):
-    """
-    Cerca e sostituisce una matricola in un foglio Excel specificato.
-    """
-    file_cfg = config['file_e_fogli_excel']['impostazioni_file']
-    odc_cfg = config['coordinate_e_dati']['odc']
-    nome_file_excel = os.path.abspath(file_cfg['percorso_file_excel'])
-    nome_foglio_matricole = odc_cfg.get('nome_foglio_matricole', '')
-
-    if not nome_foglio_matricole:
-        print("ATTENZIONE: 'nome_foglio_matricole' non è configurato in config.json. Impossibile aggiornare la matricola.")
-        return False
-
-    try:
-        wb = openpyxl.load_workbook(nome_file_excel, keep_vba=True)
-        if nome_foglio_matricole not in wb.sheetnames:
-            print(f"ERRORE: Il foglio '{nome_foglio_matricole}' non è stato trovato nel file Excel.")
-            wb.close()
-            return False
-
-        sheet = wb[nome_foglio_matricole]
-        matricola_trovata = False
-        # Cerca solo nella colonna A, partendo dalla riga 2
-        for cell in sheet['A'][1:]: # [1:] per saltare la prima riga (intestazione)
-            if str(cell.value).strip() == str(vecchia_matricola).strip():
-                print(f"  Trovata matricola '{vecchia_matricola}' nella cella {cell.coordinate}. Sostituisco con '{nuova_matricola}'.")
-                cell.value = nuova_matricola
-                matricola_trovata = True
-                break # Trovata, esco dal ciclo
-
-        if not matricola_trovata:
-            print(f"ATTENZIONE: La matricola '{vecchia_matricola}' non è stata trovata nel foglio '{nome_foglio_matricole}'.")
-
-        wb.save(nome_file_excel)
-        wb.close()
-        print("File Excel salvato con la matricola aggiornata.")
-        return True
-    except Exception as e:
-        print(f"\nERRORE durante l'aggiornamento della matricola nel file Excel: {e}")
-        traceback.print_exc()
-        return False
-
 def force_excel_recalculation(filepath):
     if not WIN32_AVAILABLE:
         print("ERRORE: Impossibile forzare il ricalcolo, pywin32 non disponibile.")
@@ -168,17 +126,17 @@ def gestisci_popup_con_ocr(config, regione_screenshot, testo_da_cercare, coordin
 
 def gestisci_popup_matricola_disabilitata(config, matricola_corrente):
     """
-    Controlla la presenza del popup 'matricola disabilitata', gestisce l'interazione
-    e restituisce la nuova matricola se modificata dall'utente.
+    Controlla la presenza del popup 'matricola disabilitata', gestisce l'interazione,
+    aggiorna il file Excel e restituisce la nuova matricola se modificata.
     """
     if not OCR_AVAILABLE:
         print("ATTENZIONE: OCR non disponibile, impossibile gestire il popup 'matricola disabilitata'.")
         return matricola_corrente
 
     odc_cfg = config['coordinate_e_dati']['odc']
-    regione = tuple(odc_cfg.get('regione_popup_matricola_disabilitata', [0,0,0,0]))
+    regione = tuple(odc_cfg.get('regione_popup_matricola_disabilitata', [0, 0, 0, 0]))
     testo_da_cercare = odc_cfg.get('testo_popup_matricola_disabilitata', '')
-    coord_ok = tuple(odc_cfg.get('coordinate_click_popup_matricola_disabilitata_ok', [0,0]))
+    coord_ok = tuple(odc_cfg.get('coordinate_click_popup_matricola_disabilitata_ok', [0, 0]))
 
     if not all([regione, testo_da_cercare, coord_ok]):
         print("ATTENZIONE: Configurazione per 'matricola disabilitata' incompleta. Salto il controllo.")
@@ -186,9 +144,8 @@ def gestisci_popup_matricola_disabilitata(config, matricola_corrente):
 
     try:
         pytesseract.pytesseract.tesseract_cmd = config['file_e_fogli_excel']['impostazioni_file']['path_tesseract_cmd']
-        time.sleep(config['coordinate_e_dati']['odc']['pausa_attesa_popup']) # Riuso la pausa generica
+        time.sleep(config['coordinate_e_dati']['odc']['pausa_attesa_popup'])
         screenshot = pyautogui.screenshot(region=regione)
-        screenshot.save("debug_popup_matricola.png")
         testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
         print(f"\n[DEBUG OCR - Matricola Disabilitata] Testo estratto: '{testo_estratto.strip()}'")
 
@@ -197,31 +154,60 @@ def gestisci_popup_matricola_disabilitata(config, matricola_corrente):
             pyautogui.click(coord_ok)
             time.sleep(1.0)
 
-            print(f"Matricola '{matricola_corrente}' disabilitata. Verifica.")
+            # Logica Excel integrata
+            file_cfg = config['file_e_fogli_excel']['impostazioni_file']
+            nome_file_excel = os.path.abspath(file_cfg['percorso_file_excel'])
+            nome_foglio_matricole = odc_cfg.get('nome_foglio_matricole', '')
+            nome_dipendente = "Sconosciuto"
+            wb, cella_da_aggiornare = None, None
 
-            nuova_matricola = pyautogui.prompt(
-                text=f"La matricola '{matricola_corrente}' risulta disabilitata.\n\nInserisci la NUOVA matricola per continuare e aggiornare il file Excel.\nLascia vuoto per annullare e saltare la riga.",
-                title="Matricola Disabilitata - Inserisci Nuova Matricola",
-                default=""
-            )
-
-            if nuova_matricola:
-                nuova_matricola = nuova_matricola.strip()
-                print(f"  L'utente ha inserito la nuova matricola: '{nuova_matricola}'. Procedo con l'aggiornamento.")
-                aggiorna_matricola_excel(config, matricola_corrente, nuova_matricola)
-                return nuova_matricola
+            if not nome_foglio_matricole:
+                print("ATTENZIONE: 'nome_foglio_matricole' non configurato. Impossibile cercare nome o aggiornare matricola.")
             else:
-                print("  L'utente ha annullato. La matricola non verrà modificata e la riga potrebbe essere saltata.")
-                # Restituisco la matricola originale, la logica a monte deciderà come gestire
-                return matricola_corrente
+                try:
+                    wb = openpyxl.load_workbook(nome_file_excel, keep_vba=True)
+                    if nome_foglio_matricole in wb.sheetnames:
+                        sheet = wb[nome_foglio_matricole]
+                        for cell in sheet['A'][1:]:
+                            if str(cell.value).strip() == str(matricola_corrente).strip():
+                                nome_dipendente = sheet[f'B{cell.row}'].value or "Nome non trovato"
+                                cella_da_aggiornare = cell
+                                break
+                    else:
+                        print(f"ERRORE: Foglio '{nome_foglio_matricole}' non trovato.")
+                except Exception as e:
+                    print(f"ERRORE durante lettura Excel per trovare il nome: {e}")
+                    if 'wb' in locals() and wb: wb.close()
+                    wb = None # Assicura che non si tenti di salvare
+
+            prompt_text = f"La matricola '{matricola_corrente}' per '{nome_dipendente}' è disabilitata.\n\nInserisci la NUOVA matricola per aggiornare Excel e continuare.\nLascia vuoto per annullare."
+            nuova_matricola = pyautogui.prompt(text=prompt_text, title="Matricola Disabilitata", default="")
+
+            if nuova_matricola and cella_da_aggiornare and wb:
+                nuova_matricola = nuova_matricola.strip()
+                print(f"  L'utente ha inserito '{nuova_matricola}'. Aggiorno la cella {cella_da_aggiornare.coordinate}.")
+                try:
+                    cella_da_aggiornare.value = nuova_matricola
+                    wb.save(nome_file_excel)
+                    print("  File Excel salvato con la matricola aggiornata.")
+                    return nuova_matricola
+                except Exception as e:
+                    print(f"ERRORE durante il salvataggio della nuova matricola: {e}")
+                finally:
+                    if wb: wb.close()
+            else:
+                if not nuova_matricola: print("  L'utente ha annullato. Nessuna modifica.")
+                if nuova_matricola and not cella_da_aggiornare: print(f"ATTENZIONE: Nuova matricola inserita ma quella vecchia ('{matricola_corrente}') non è stata trovata in Excel. Nessun aggiornamento.")
+                if wb: wb.close()
+
+            return matricola_corrente # Ritorna la vecchia se annullato o fallito
         else:
-            # Nessun popup trovato, tutto ok
-            return matricola_corrente
+            return matricola_corrente # Nessun popup trovato
 
     except Exception as e:
-        print(f"\nERRORE durante la gestione del popup 'matricola disabilitata': {e}")
+        print(f"\nERRORE durante gestione popup 'matricola disabilitata': {e}")
         traceback.print_exc()
-        return matricola_corrente # In caso di errore, prosegui con la matricola originale
+        return matricola_corrente
 
 def esegui_procedura_registrazione_odc(config, valore_odc_fallito, dati_riga_completa):
     print("\n--- INIZIO PROCEDURA REGISTRAZIONE ODC ---")

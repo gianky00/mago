@@ -13,20 +13,39 @@
       "colonna_riga_fine": "C",
       "colonna_data_rapporto": "A"
     },
-    "mappatura_colonne_foglio_dati": [
-      { "nome": "Commessa", "colonna_excel": "C", "target_x_remoto": 55 },
-      { "nome": "Matricola", "colonna_excel": "D", "target_x_remoto": 138 },
-      { "nome": "Descrizione Attività", "colonna_excel": "T", "target_x_remoto": 488 },
-      { "nome": "Area", "colonna_excel": "I", "target_x_remoto": 596 },
-      { "nome": "Forfait", "colonna_excel": "J", "target_x_remoto": 730 },
-      { "nome": "Misura", "colonna_excel": "K", "target_x_remoto": 795 },
-      { "nome": "Economia", "colonna_excel": "L", "target_x_remoto": 860 },
-      { "nome": "STR 25%", "colonna_excel": "M", "target_x_remoto": 925 },
-      { "nome": "STR 50%", "colonna_excel": "N", "target_x_remoto": 985 },
-      { "nome": "FERIE/ROL", "colonna_excel": "P", "target_x_remoto": 1110 },
-      { "nome": "MALATTIA", "colonna_excel": "Q", "target_x_remoto": 1175 },
-      { "nome": "CIG-SC-PH", "colonna_excel": "R", "target_x_remoto": 1260 }
-    ]
+    "mappatura_colonne_profili": {
+      "profilo_attivo": "ammnord",
+      "profili": {
+        "ammnord": [
+          { "nome": "Commessa", "colonna_excel": "C", "target_x_remoto": 55 },
+          { "nome": "Matricola", "colonna_excel": "D", "target_x_remoto": 138 },
+          { "nome": "Descrizione Attività", "colonna_excel": "T", "target_x_remoto": 488 },
+          { "nome": "Area", "colonna_excel": "I", "target_x_remoto": 596 },
+          { "nome": "Forfait", "colonna_excel": "J", "target_x_remoto": 730 },
+          { "nome": "Misura", "colonna_excel": "K", "target_x_remoto": 795 },
+          { "nome": "Economia", "colonna_excel": "L", "target_x_remoto": 860 },
+          { "nome": "STR 25%", "colonna_excel": "M", "target_x_remoto": 925 },
+          { "nome": "STR 50%", "colonna_excel": "N", "target_x_remoto": 985 },
+          { "nome": "FERIE/ROL", "colonna_excel": "P", "target_x_remoto": 1110 },
+          { "nome": "MALATTIA", "colonna_excel": "Q", "target_x_remoto": 1175 },
+          { "nome": "CIG-SC-PH", "colonna_excel": "R", "target_x_remoto": 1260 }
+        ],
+        "isabsud": [
+          { "nome": "Commessa", "colonna_excel": "C", "target_x_remoto": 55 },
+          { "nome": "Matricola", "colonna_excel": "D", "target_x_remoto": 138 },
+          { "nome": "Descrizione Attività", "colonna_excel": "T", "target_x_remoto": 488 },
+          { "nome": "Area", "colonna_excel": "I", "target_x_remoto": 596 },
+          { "nome": "Forfait", "colonna_excel": "J", "target_x_remoto": 730 },
+          { "nome": "Misura", "colonna_excel": "K", "target_x_remoto": 795 },
+          { "nome": "Economia", "colonna_excel": "L", "target_x_remoto": 860 },
+          { "nome": "STR 25%", "colonna_excel": "M", "target_x_remoto": 925 },
+          { "nome": "STR 50%", "colonna_excel": "N", "target_x_remoto": 985 },
+          { "nome": "FERIE/ROL", "colonna_excel": "P", "target_x_remoto": 1110 },
+          { "nome": "MALATTIA", "colonna_excel": "Q", "target_x_remoto": 1175 },
+          { "nome": "CIG-SC-PH", "colonna_excel": "R", "target_x_remoto": 1260 }
+        ]
+      }
+    }
   },
   "coordinate_e_dati": {
     "gui": {
@@ -62,11 +81,7 @@
       "coordinate_click_popup_attenzione_sal": [1147, 618],
       "regione_popup_codice_iva": [727, 452, 471, 185],
       "testo_popup_codice_iva": "Il codice IVA del cliente viene impostato solo nella scheda",
-      "coordinate_click_popup_codice_iva": [1145, 603],
-      "regione_popup_matricola_disabilitata": [836, 459, 252, 173],
-      "testo_popup_matricola_disabilitata": "disattivo",
-      "coordinate_click_popup_matricola_disabilitata_ok": [1071, 600],
-      "nome_foglio_matricole": "MATRICOLE"
+      "coordinate_click_popup_codice_iva": [1145, 603]
     }
   },
   "timing_e_ritardi": {

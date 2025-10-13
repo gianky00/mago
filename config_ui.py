@@ -152,31 +152,24 @@ class ConfigFrame(ttk.Frame):
         excel_notebook = ttk.Notebook(excel_tab)
         excel_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        # --- Step 1: Create all main tab containers ---
-        profiles_tab_container = ttk.Frame(main_notebook)
-        file_mappature_container = ttk.Frame(main_notebook)
-        coords_container = ttk.Frame(main_notebook)
-        other_container = ttk.Frame(main_notebook)
+        # --- Main Tab 1: Profili ---
+        profiles_tab = ttk.Frame(main_notebook)
+        main_notebook.add(profiles_tab, text="Profili")
+        # This tab is simple and doesn't need a sub-notebook
+        self.create_profile_management_tab(profiles_tab)
 
-        main_notebook.add(profiles_tab_container, text="Profili")
-        main_notebook.add(file_mappature_container, text="File e Mappature")
-        main_notebook.add(coords_container, text="Coordinate GUI")
-        main_notebook.add(other_container, text="Altre Impostazioni")
-
-        # --- Step 2: Create the inner notebook for the "File e Mappature" tab ---
-        file_mappature_notebook = ttk.Notebook(file_mappature_container)
+        # --- Main Tab 2: File e Mappature (this one has sub-tabs) ---
+        file_mappature_tab = ttk.Frame(main_notebook)
+        main_notebook.add(file_mappature_tab, text="File e Mappature")
+        file_mappature_notebook = ttk.Notebook(file_mappature_tab) # Create the inner notebook
         file_mappature_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        # --- Step 3: Initialize the specific tab frames that are dependencies *before* populating ---
+        # Initialize frames for the sub-tabs first
         self.mapping_tab_frame = ttk.Frame(file_mappature_notebook)
         self.odc_tab_frame = ttk.Frame(file_mappature_notebook)
-        self.mapping_vars = {} # Initialize here
+        self.mapping_vars = {}
 
-        # --- Step 4: Now, populate all the tabs in the correct order ---
-        # Populate Profili (which depends on other tabs existing)
-        self.create_profile_management_tab(profiles_tab_container)
-
-        # Populate File e Mappature
+        # Now populate the sub-tabs
         self.create_generic_tab(file_mappature_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
         self.create_generic_tab(file_mappature_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Colonne Foglio Avanzamento")
 
@@ -186,15 +179,24 @@ class ConfigFrame(ttk.Frame):
         file_mappature_notebook.add(self.odc_tab_frame, text="Impostazioni ODC per Profilo")
         self.draw_odc_settings()
 
-        # Populate Coordinate GUI
-        self.create_generic_tab(coords_container, ("coordinate_e_dati", "gui"), "GUI")
+        # --- Main Tab 3: Coordinate GUI ---
+        coords_tab = ttk.Frame(main_notebook)
+        main_notebook.add(coords_tab, text="Coordinate GUI")
+        # This tab is also simple, so we pass the main frame directly to populate_generic_tab
+        self.populate_generic_tab(coords_tab, ("coordinate_e_dati", "gui"))
 
-        # Populate Altre Impostazioni
-        other_notebook = ttk.Notebook(other_container)
+        # --- Main Tab 4: Altre Impostazioni (this one has sub-tabs) ---
+        other_tab = ttk.Frame(main_notebook)
+        main_notebook.add(other_tab, text="Altre Impostazioni")
+        other_notebook = ttk.Notebook(other_tab) # Create the inner notebook
         other_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+
         self.create_generic_tab(other_notebook, ("timing_e_ritardi",), "Timing")
         self.create_generic_tab(other_notebook, ("pulizia_appunti",), "Pulizia Appunti")
         self.create_generic_tab(other_notebook, ("tasti_rapidi",), "Tasti Rapidi")
+
+        # Finally, call on_profile_change once at the end to ensure the UI is consistent
+        self.on_profile_change()
 
         # --- Pulsante Salva ---
         btn_save = ttk.Button(main_frame, text="Salva Configurazione", command=self.save_config, style="Accent.TButton")
@@ -351,11 +353,11 @@ class ConfigFrame(ttk.Frame):
 
         profile_frame.columnconfigure(1, weight=1)
 
-        # Pre-carica l'elenco iniziale
-        self.update_profile_list()
-
-
     def draw_mapping_entries(self):
+        # This check is crucial for the very first run before the profile var is set
+        if not hasattr(self, 'mapping_tab_frame'):
+            return
+
         for widget in self.mapping_tab_frame.winfo_children():
             widget.destroy()
 

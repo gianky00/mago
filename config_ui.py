@@ -152,26 +152,35 @@ class ConfigFrame(ttk.Frame):
         excel_notebook = ttk.Notebook(excel_tab)
         excel_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        # --- Main Tab 1: Profili ---
+        # --- Step 1: Create all main tab frames first ---
         self.profiles_tab = ttk.Frame(main_notebook)
+        file_mappature_tab = ttk.Frame(main_notebook)
+        coords_tab = ttk.Frame(main_notebook)
+        other_tab = ttk.Frame(main_notebook)
+
         main_notebook.add(self.profiles_tab, text="Profili")
+        main_notebook.add(file_mappature_tab, text="File e Mappature")
+        main_notebook.add(coords_tab, text="Coordinate GUI")
+        main_notebook.add(other_tab, text="Altre Impostazioni")
+
+        # --- Step 2: Create inner notebooks and frames ---
+        file_mappature_notebook = ttk.Notebook(file_mappature_tab)
+        file_mappature_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+
+        other_notebook = ttk.Notebook(other_tab)
+        other_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+
+        # --- Step 3: Populate the tabs now that all frames exist ---
+        # Main Tab 1: Profili
         self.create_profile_management_tab(self.profiles_tab)
 
-        # --- Main Tab 2: File e Mappature ---
-        excel_tab = ttk.Frame(main_notebook)
-        main_notebook.add(excel_tab, text="File e Mappature")
-        excel_notebook = ttk.Notebook(excel_tab)
-        excel_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+        # Main Tab 2: File e Mappature
+        self.create_generic_tab(file_mappature_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
+        self.create_generic_tab(file_mappature_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Colonne Foglio Avanzamento")
+        self.create_mapping_tab(file_mappature_notebook, "Mappatura Colonne per Profilo")
+        self.create_odc_settings_tab(file_mappature_notebook, "Impostazioni ODC per Profilo")
 
-        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
-        self.create_generic_tab(excel_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Colonne Foglio Avanzamento")
-        self.create_mapping_tab(excel_notebook, "Mappatura Colonne per Profilo")
-        self.create_odc_settings_tab(excel_notebook, "Impostazioni ODC per Profilo")
-
-
-        # --- Main Tab 3: Coordinate GUI ---
-        coords_tab = ttk.Frame(main_notebook)
-        main_notebook.add(coords_tab, text="Coordinate GUI")
+        # Main Tab 3: Coordinate GUI
         self.create_generic_tab(coords_tab, ("coordinate_e_dati", "gui"), "GUI")
 
 

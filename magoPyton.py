@@ -118,39 +118,39 @@ def controlla_regione_per_testo(config, odc_cfg, regione, testo_da_cercare, nome
     if not OCR_AVAILABLE:
         print(f"ATTENZIONE: OCR non disponibile, impossibile controllare '{nome_log}'.")
         return False
-    # Assicura che la regione sia una tupla di 4 elementi interi
+    # Step 1: Validazione della regione
     try:
-        regione_valida = tuple(map(int, regione))
-        if len(regione_valida) != 4:
-            raise ValueError
+        # Converte in interi e si assicura che siano 4 valori
+        x, y, w, h = map(int, regione)
+        # Se la larghezza o l'altezza sono 0, la regione non è valida per uno screenshot
+        if w <= 0 or h <= 0:
+            return False
+        regione_valida = (x, y, w, h)
     except (ValueError, TypeError):
-        print(f"ERRORE: La regione per '{nome_log}' non è valida: {regione}. Deve essere una lista/tupla di 4 numeri.")
+        # Se la regione non è una lista/tupla di 4 numeri, non è valida
         return False
 
+    # Step 2: Tentativo di cattura e OCR
     try:
         pytesseract.pytesseract.tesseract_cmd = config['file_e_fogli_excel']['impostazioni_file']['path_tesseract_cmd']
-        time.sleep(odc_cfg.get('pausa_attesa_popup', 0.5)) # Usa .get per sicurezza
+        time.sleep(odc_cfg.get('pausa_attesa_popup', 0.5))
         screenshot = pyautogui.screenshot(region=regione_valida)
-        screenshot.save(f"debug_popup_{nome_log}.png")
         testo_estratto = pytesseract.image_to_string(screenshot, lang='ita')
-        print(f"\n[DEBUG OCR - {nome_log}] Testo estratto: '{testo_estratto.strip()}'")
 
-        testo_trovato = testo_da_cercare.lower() in testo_estratto.lower()
-        if testo_trovato:
-            print(f"  --> Testo '{testo_da_cercare}' TROVATO nel popup '{nome_log}'.")
+        # Step 3: Controllo del testo e azione (con log solo in caso di successo)
+        if testo_da_cercare.lower() in testo_estratto.lower():
+            print(f"  --> POPUP RILEVATO: '{nome_log}'. Azione in corso...")
             if click_coords:
                 pyautogui.click(click_coords)
-                print(f"      Click eseguito su {click_coords}.")
-            time.sleep(0.5) # Pausa dopo il click
+            time.sleep(0.5)
             return True
-        else:
-            # Questo non è un errore, semplicemente il testo non c'è
-            print(f"  Testo '{testo_da_cercare}' NON trovato nel popup '{nome_log}'.")
-            return False
+
+        return False # Nessun log se il testo non viene trovato
+
     except Exception as e:
-        # Questo è un errore di esecuzione (es. Tesseract non trovato, regione non valida)
-        print(f"\nERRORE durante la gestione del popup '{nome_log}' con OCR: {e}")
-        # traceback.print_exc() # Può essere decommentato per debug approfondito
+        # Logga solo errori di esecuzione reali, non il "tile cannot extend"
+        # che viene prevenuto dalla validazione all'inizio.
+        print(f"\nERRORE durante l'analisi OCR del popup '{nome_log}': {e}")
         return False
 
 def esegui_procedura_registrazione_odc(config, odc_cfg, gui_cfg, valore_odc_fallito, dati_riga_completa):

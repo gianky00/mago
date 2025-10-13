@@ -402,10 +402,27 @@ class ConfigFrame(ttk.Frame):
         active_profile_name = self.active_profile_var.get()
         if not active_profile_name: return
 
-        # Usiamo populate_generic_tab per creare dinamicamente i campi
-        # Definiamo un percorso "virtuale" per le chiavi che punti ai dati del profilo attivo
+        # Creiamo un canvas e una scrollbar per rendere la tab scrollabile
+        canvas = tk.Canvas(self.odc_tab_frame)
+        scrollbar = ttk.Scrollbar(self.odc_tab_frame, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(
+                scrollregion=canvas.bbox("all")
+            )
+        )
+
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+
+        canvas.pack(side="left", fill="both", expand=True)
+        scrollbar.pack(side="right", fill="y")
+
+        # Usiamo populate_generic_tab per creare dinamicamente i campi DENTRO il frame scrollabile
         keys = ("file_e_fogli_excel", "mappatura_colonne_profili", "profili", active_profile_name, "impostazioni_odc")
-        self.populate_generic_tab(self.odc_tab_frame, keys)
+        self.populate_generic_tab(scrollable_frame, keys)
 
 
     def on_profile_change(self, event=None):

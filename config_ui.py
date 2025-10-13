@@ -139,39 +139,27 @@ class ConfigFrame(ttk.Frame):
                   font=("Arial", 14, "bold"), foreground="red").pack(pady=50, padx=20)
 
     def create_widgets(self):
-        # Frame principale per contenere tutto, inclusi i pulsanti
-        main_frame = ttk.Frame(self)
-        main_frame.pack(expand=True, fill="both")
+        # Il frame principale ora usa grid per un miglior controllo
+        self.grid_rowconfigure(0, weight=1)
+        self.grid_columnconfigure(0, weight=1)
 
-        main_notebook = ttk.Notebook(main_frame)
-        main_notebook.pack(pady=10, padx=10, expand=True, fill="both")
-
-        # --- Main Tab 1: File e Fogli Excel ---
-        excel_tab = ttk.Frame(main_notebook)
-        main_notebook.add(excel_tab, text="File e Fogli Excel")
-        excel_notebook = ttk.Notebook(excel_tab)
-        excel_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+        main_notebook = ttk.Notebook(self)
+        main_notebook.grid(row=0, column=0, sticky="nsew", padx=10, pady=(10, 0))
 
         # --- Main Tab 1: Profili ---
         profiles_tab = ttk.Frame(main_notebook)
         main_notebook.add(profiles_tab, text="Profili")
-        # This tab is simple and doesn't need a sub-notebook
         self.create_profile_management_tab(profiles_tab)
 
-        # --- Main Tab 2: File e Mappature (this one has sub-tabs) ---
+        # --- Main Tab 2: Mappature (con sub-tabs) ---
         file_mappature_tab = ttk.Frame(main_notebook)
-        main_notebook.add(file_mappature_tab, text="File e Mappature")
-        file_mappature_notebook = ttk.Notebook(file_mappature_tab) # Create the inner notebook
+        main_notebook.add(file_mappature_tab, text="Mappature e ODC")
+        file_mappature_notebook = ttk.Notebook(file_mappature_tab)
         file_mappature_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        # Initialize frames for the sub-tabs first
         self.mapping_tab_frame = ttk.Frame(file_mappature_notebook)
         self.odc_tab_frame = ttk.Frame(file_mappature_notebook)
         self.mapping_vars = {}
-
-        # Now populate the sub-tabs
-        self.create_generic_tab(file_mappature_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Impostazioni File")
-        self.create_generic_tab(file_mappature_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Colonne Foglio Avanzamento")
 
         file_mappature_notebook.add(self.mapping_tab_frame, text="Mappatura Colonne per Profilo")
         self.draw_mapping_entries()
@@ -179,28 +167,30 @@ class ConfigFrame(ttk.Frame):
         file_mappature_notebook.add(self.odc_tab_frame, text="Impostazioni ODC per Profilo")
         self.draw_odc_settings()
 
-        # --- Main Tab 3: Coordinate GUI ---
-        coords_tab = ttk.Frame(main_notebook)
-        main_notebook.add(coords_tab, text="Coordinate GUI")
-        # This tab is also simple, so we pass the main frame directly to populate_generic_tab
-        self.populate_generic_tab(coords_tab, ("coordinate_e_dati", "gui"))
+        # --- Main Tab 3: Impostazioni Globali (con sub-tabs) ---
+        global_settings_tab = ttk.Frame(main_notebook)
+        main_notebook.add(global_settings_tab, text="Impostazioni Globali")
+        global_settings_notebook = ttk.Notebook(global_settings_tab)
+        global_settings_notebook.pack(pady=5, padx=5, expand=True, fill="both")
 
-        # --- Main Tab 4: Altre Impostazioni (this one has sub-tabs) ---
-        other_tab = ttk.Frame(main_notebook)
-        main_notebook.add(other_tab, text="Altre Impostazioni")
-        other_notebook = ttk.Notebook(other_tab) # Create the inner notebook
-        other_notebook.pack(pady=5, padx=5, expand=True, fill="both")
+        self.create_generic_tab(global_settings_notebook, ("file_e_fogli_excel", "impostazioni_file"), "Percorsi File")
+        self.create_generic_tab(global_settings_notebook, ("file_e_fogli_excel", "mappature_colonne_foglio_avanzamento"), "Colonne Avanzamento")
+        self.create_generic_tab(global_settings_notebook, ("coordinate_e_dati", "gui"), "Coordinate GUI")
+        self.create_generic_tab(global_settings_notebook, ("timing_e_ritardi",), "Timing")
+        self.create_generic_tab(global_settings_notebook, ("pulizia_appunti",), "Pulizia Appunti")
+        self.create_generic_tab(global_settings_notebook, ("tasti_rapidi",), "Tasti Rapidi")
 
-        self.create_generic_tab(other_notebook, ("timing_e_ritardi",), "Timing")
-        self.create_generic_tab(other_notebook, ("pulizia_appunti",), "Pulizia Appunti")
-        self.create_generic_tab(other_notebook, ("tasti_rapidi",), "Tasti Rapidi")
+        # Frame per il pulsante Salva, posizionato sotto il notebook
+        button_frame = ttk.Frame(self)
+        button_frame.grid(row=1, column=0, sticky="ew", padx=10, pady=10)
 
-        # Finally, call on_profile_change once at the end to ensure the UI is consistent
+        # Centra il pulsante nel suo frame
+        button_frame.grid_columnconfigure(0, weight=1)
+        btn_save = ttk.Button(button_frame, text="Salva Configurazione", command=self.save_config, style="Accent.TButton")
+        btn_save.grid(row=0, column=0, pady=5)
+
+        # Chiamata finale per popolare i dati dipendenti dal profilo
         self.on_profile_change()
-
-        # --- Pulsante Salva ---
-        btn_save = ttk.Button(main_frame, text="Salva Configurazione", command=self.save_config, style="Accent.TButton")
-        btn_save.pack(pady=15, padx=10)
 
     def get_nested_data(self, keys):
         data = self.config_data
@@ -244,11 +234,16 @@ class ConfigFrame(ttk.Frame):
         # 2. Carica la sezione dei tooltip corrispondente (opzionale)
         tooltip_section = {}
         if self.tooltips_data:
+            tooltip_keys = keys
+            # Se stiamo popolando la tab ODC, il percorso dei tooltip è fisso e non dipende dal nome del profilo
+            if keys and keys[-1] == "impostazioni_odc":
+                tooltip_keys = ("file_e_fogli_excel", "mappatura_colonne_profili", "profili", "impostazioni_odc")
+
             try:
-                tooltip_section = self.get_nested_data(keys, data_source=self.tooltips_data)
+                tooltip_section = self.get_nested_data(tooltip_keys, data_source=self.tooltips_data)
             except KeyError:
                 # Non è un errore critico. Significa solo che non ci sono tooltip per questa sezione.
-                # L'interfaccia si caricherà comunque, ma senza mostrare i tooltip per questi campi.
+                print(f"Avviso: Nessun tooltip trovato per la sezione '{keys}'.")
                 pass
 
         critical_params = ["ritardo_click_singolo", "ritardo_prima_incolla", "ritardo_dopo_tab"]

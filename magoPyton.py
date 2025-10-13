@@ -91,15 +91,13 @@ def aggiorna_matricola_excel(config, vecchia_matricola, nuova_matricola):
 
         sheet = wb[nome_foglio_matricole]
         matricola_trovata = False
-        for row in sheet.iter_rows():
-            for cell in row:
-                if str(cell.value).strip() == str(vecchia_matricola).strip():
-                    print(f"  Trovata matricola '{vecchia_matricola}' nella cella {cell.coordinate}. Sostituisco con '{nuova_matricola}'.")
-                    cell.value = nuova_matricola
-                    matricola_trovata = True
-                    break
-            if matricola_trovata:
-                break
+        # Cerca solo nella colonna A, partendo dalla riga 2
+        for cell in sheet['A'][1:]: # [1:] per saltare la prima riga (intestazione)
+            if str(cell.value).strip() == str(vecchia_matricola).strip():
+                print(f"  Trovata matricola '{vecchia_matricola}' nella cella {cell.coordinate}. Sostituisco con '{nuova_matricola}'.")
+                cell.value = nuova_matricola
+                matricola_trovata = True
+                break # Trovata, esco dal ciclo
 
         if not matricola_trovata:
             print(f"ATTENZIONE: La matricola '{vecchia_matricola}' non è stata trovata nel foglio '{nome_foglio_matricole}'.")

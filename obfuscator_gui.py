@@ -146,14 +146,15 @@ class ObfuscatorGUI(tk.Tk):
                 
             self.queue.put(f"Scripts to be processed: {', '.join(all_scripts)}\n")
 
-            # 4. Obfuscate by passing the explicit list of all scripts.
+            # 4. Obfuscate by passing ONLY the entry script. PyArmor will find the rest.
             self.queue.put("\n--- Running PyArmor ---\n")
             command = [
                 "pyarmor", "gen",
                 "--with-license", "outer",
                 "--output", os.path.abspath(dest_dir),
-            ] + all_scripts
-            
+                main_script  # Pass only the entry script
+            ]
+
             process = subprocess.Popen(
                 command, 
                 stdout=subprocess.PIPE, 

@@ -36,6 +36,7 @@ except ImportError:
 
 try:
     import win32com.client as win32
+    import pythoncom
     WIN32_AVAILABLE = True
 except ImportError:
     print("ATTENZIONE: Libreria 'pywin32' non trovata.")
@@ -80,6 +81,7 @@ def force_excel_recalculation(filepath):
     print(f"\nTentativo di forzare il ricalcolo di Excel per: {os.path.basename(filepath)}...")
     excel_instance = None
     try:
+        pythoncom.CoInitialize()
         excel_instance = win32.Dispatch('Excel.Application')
         excel_instance.Visible = False
         excel_instance.DisplayAlerts = False
@@ -98,6 +100,7 @@ def force_excel_recalculation(filepath):
     finally:
         if excel_instance:
             excel_instance.Quit()
+        pythoncom.CoUninitialize()
 
 def mostra_dialogo_input(titolo, messaggio):
     """Funzione helper per mostrare un dialogo di input e ottenere il risultato."""

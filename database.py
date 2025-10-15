@@ -25,7 +25,7 @@ class Database:
                 hwid_scheda_madre TEXT NOT NULL
             )
         """)
-
+        
         # Tabella per lo storico delle licenze generate
         self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS storico_licenze (
@@ -127,13 +127,13 @@ if __name__ == '__main__':
     users = db.get_all_users()
     for user in users:
         print(user)
-
+    
     # Aggiornamento utente
     if users:
         user_id_to_update = users[0][0] # ID del primo utente
         print(f"\nAggiornamento utente ID {user_id_to_update}...")
         print(db.update_user(user_id_to_update, "Cliente Prova 1 Modificato", "HWID-001-NEW"))
-
+    
     # Lettura utenti dopo aggiornamento
     print("\nUtenti dopo l'aggiornamento:")
     users = db.get_all_users()
@@ -178,7 +178,7 @@ if __name__ == '__main__':
     # Chiusura connessione
     db.close()
     print("\nConnessione chiusa.")
-
+    
     # Rimuovi il database di test
     import os
     os.remove("test_gestionale.db")

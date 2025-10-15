@@ -6,12 +6,13 @@ import shutil
 import os
 import glob
 import queue
+import sys
 
 class ObfuscatorGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Application Obfuscator")
-        self.geometry("600x450") # Increased height for new widget
+        self.geometry("600x450")
         self.destination_path = tk.StringVar()
         self.license_path = tk.StringVar()
         self.queue = queue.Queue()
@@ -19,26 +20,18 @@ class ObfuscatorGUI(tk.Tk):
         # Frame for destination path selection
         dest_path_frame = tk.Frame(self, pady=5)
         dest_path_frame.pack(fill='x', padx=10, pady=(10,0))
-
-        dest_path_label = tk.Label(dest_path_frame, text="Destination Folder:")
-        dest_path_label.pack(side='left')
-
+        tk.Label(dest_path_frame, text="Destination Folder:").pack(side='left')
         self.dest_path_entry = tk.Entry(dest_path_frame, textvariable=self.destination_path, state='readonly', width=50)
         self.dest_path_entry.pack(side='left', expand=True, fill='x', padx=5)
-
         self.browse_dest_button = tk.Button(dest_path_frame, text="Browse...", command=self.select_destination)
         self.browse_dest_button.pack(side='left')
 
         # Frame for license file selection
         license_path_frame = tk.Frame(self, pady=5)
         license_path_frame.pack(fill='x', padx=10)
-
-        license_path_label = tk.Label(license_path_frame, text="License File (.lic):")
-        license_path_label.pack(side='left')
-
+        tk.Label(license_path_frame, text="License File (.lic):").pack(side='left')
         self.license_path_entry = tk.Entry(license_path_frame, textvariable=self.license_path, state='readonly', width=50)
         self.license_path_entry.pack(side='left', expand=True, fill='x', padx=5)
-
         self.browse_license_button = tk.Button(license_path_frame, text="Browse...", command=self.select_license_file)
         self.browse_license_button.pack(side='left')
 
@@ -49,10 +42,7 @@ class ObfuscatorGUI(tk.Tk):
         # Status Area
         status_frame = tk.Frame(self, pady=10)
         status_frame.pack(expand=True, fill='both', padx=10)
-
-        status_label = tk.Label(status_frame, text="Status:")
-        status_label.pack(anchor='w')
-
+        tk.Label(status_frame, text="Status:").pack(anchor='w')
         self.status_text = tk.Text(status_frame, height=10, state='disabled', bg='black', fg='white', font=('Courier', 9))
         self.status_text.pack(expand=True, fill='both')
 
@@ -93,10 +83,7 @@ class ObfuscatorGUI(tk.Tk):
         self.status_text.delete('1.0', tk.END)
         self.status_text.config(state='disabled')
 
-        # Start the queue processor
         self._process_queue()
-
-        # Run the obfuscation in a background thread
         thread = threading.Thread(target=self._run_obfuscation_process)
         thread.daemon = True
         thread.start()
@@ -109,7 +96,6 @@ class ObfuscatorGUI(tk.Tk):
                     self.start_button.config(state='normal')
                     self.browse_dest_button.config(state='normal')
                     self.browse_license_button.config(state='normal')
-                    # Clean up build directory
                     build_dir = "build"
                     if os.path.exists(build_dir):
                         shutil.rmtree(build_dir)
@@ -129,36 +115,54 @@ class ObfuscatorGUI(tk.Tk):
 
             self.queue.put("Starting build process...\n")
 
-            # 1. Clean up
+            # 1. Clean up and Create build directory
             if os.path.exists(build_dir):
-                self.queue.put(f"Deleting old build directory: {build_dir}\n")
                 shutil.rmtree(build_dir)
-
-            # 2. Create build directory
-            self.queue.put(f"Creating build directory: {build_dir}\n")
             os.makedirs(build_dir)
 
-            # 3. Copy files to build directory
+            # 2. Copy ALL files to build directory
             self.queue.put("Copying application files to temporary build directory...\n")
-            files_to_copy = glob.glob('*.py') + glob.glob('*.json') + glob.glob('*.db') + glob.glob('*.xlsm')
+            files_to_copy = glob.glob(os.path.join(source_dir, '*.py')) + \
+                            glob.glob(os.path.join(source_dir, '*.json')) + \
+                            glob.glob(os.path.join(source_dir, '*.db')) + \
+                            glob.glob(os.path.join(source_dir, '*.xlsm'))
             for f in files_to_copy:
-                shutil.copy(os.path.join(source_dir, f), build_dir)
+                shutil.copy(f, build_dir)
 
             setup_dir_src = os.path.join(source_dir, 'file di setup')
             if os.path.exists(setup_dir_src):
                 shutil.copytree(setup_dir_src, os.path.join(build_dir, 'file di setup'))
-
             self.queue.put("All source files copied.\n")
 
-            # 4. Obfuscate using corrected PyArmor 9+ command
-            self.queue.put("\n--- Running PyArmor (Corrected Modern Command) ---\n")
+            # 3. Explicitly find and list ALL Python scripts to be obfuscated.
+            self.queue.put("Explicitly listing all Python scripts for obfuscation...\n")
+            all_scripts = [os.path.basename(f) for f in glob.glob(os.path.join(build_dir, '*.py'))]
+            
+            if main_script in all_scripts:
+                all_scripts.insert(0, all_scripts.pop(all_scripts.index(main_script)))
+            
+            if not all_scripts:
+                raise FileNotFoundError("No Python files found in build directory.")
+                
+            self.queue.put(f"Scripts to be processed: {', '.join(all_scripts)}\n")
+
+            # 4. Obfuscate by passing the explicit list of all scripts.
+            self.queue.put("\n--- Running PyArmor ---\n")
             command = [
                 "pyarmor", "gen",
-                "--output", dest_dir,
-                os.path.join(build_dir, main_script)
-            ]
-
-            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
+                "--output", os.path.abspath(dest_dir),
+            ] + all_scripts
+            
+            process = subprocess.Popen(
+                command, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.STDOUT, 
+                text=True, 
+                creationflags=subprocess.CREATE_NO_WINDOW, 
+                encoding='utf-8', 
+                errors='ignore',
+                cwd=build_dir
+            )
 
             while True:
                 output = process.stdout.readline()
@@ -166,34 +170,74 @@ class ObfuscatorGUI(tk.Tk):
                     break
                 if output:
                     self.queue.put(output.strip() + '\n')
-
             rc = process.poll()
             self.queue.put("--- PyArmor Finished ---\n\n")
 
             if rc == 0:
                 self.queue.put("Obfuscation successful!\n")
+                
+                # 5. Create a portable Python runtime for maximum compatibility
+                self.queue.put("Creating portable Python runtime...\n")
+                python_dir = os.path.dirname(sys.executable)
+                
+                runtime_files = [
+                    'python.exe', 'pythonw.exe', 'python3.dll',
+                    f'python{sys.version_info.major}{sys.version_info.minor}.dll',
+                    'vcruntime140.dll', 'vcruntime140_1.dll'
+                ]
+                
+                for filename in runtime_files:
+                    src_path = os.path.join(python_dir, filename)
+                    if os.path.exists(src_path):
+                        self.queue.put(f"  - Copying {filename}...\n")
+                        shutil.copy(src_path, dest_dir)
 
-                # 5. Copy selected license file
+                # Copy essential subfolders for Python and Tkinter
+                for folder in ['DLLs', 'Lib', 'tcl']:
+                    src_path = os.path.join(python_dir, folder)
+                    dest_path = os.path.join(dest_dir, folder)
+                    if os.path.exists(src_path):
+                        self.queue.put(f"  - Copying '{folder}' subfolder...\n")
+                        if os.path.exists(dest_path):
+                            shutil.rmtree(dest_path)
+                        shutil.copytree(src_path, dest_path)
+                
+                self.queue.put("Portable runtime created.\n")
+
+                # 6. Copy non-Python assets
+                self.queue.put("Copying non-Python assets to final destination...\n")
+                for asset_file in glob.glob(os.path.join(build_dir, '*.*')):
+                    if not asset_file.endswith('.py'):
+                        shutil.copy(asset_file, dest_dir)
+                
+                setup_dir_build = os.path.join(build_dir, 'file di setup')
+                setup_dir_dest = os.path.join(dest_dir, 'file di setup')
+                if os.path.exists(setup_dir_build):
+                    if os.path.exists(setup_dir_dest):
+                        shutil.rmtree(setup_dir_dest)
+                    shutil.copytree(setup_dir_build, setup_dir_dest)
+                self.queue.put("Assets copied.\n")
+
+                # 7. Copy license file
                 self.queue.put(f"Copying license file to {dest_dir}...\n")
                 shutil.copy(license_src_path, os.path.join(dest_dir, 'license.lic'))
                 self.queue.put("License file copied.\n")
 
-                # 6. Create avvio.bat launcher
+                # 8. Create avvio.bat launcher
                 self.queue.put("Creating launcher script (avvio.bat)...\n")
                 launcher_path = os.path.join(dest_dir, 'avvio.bat')
                 launcher_content = f'''@echo off
 setlocal
-REM Change directory to the script's location to ensure all DLLs are found
+REM Change directory to the script's location
 cd /d %~dp0
-REM Run the obfuscated application
-python.exe {main_script}
+REM Run the application using the LOCAL python.exe
+.\\python.exe {main_script}
 endlocal
 pause
 '''
-                with open(launcher_path, 'w') as f:
+                with open(launcher_path, 'w', encoding='utf-8') as f:
                     f.write(launcher_content)
                 self.queue.put("Launcher script created.\n")
-
                 self.queue.put(f"\nSUCCESS: Final application is ready in: {dest_dir}\n")
             else:
                 self.queue.put(f"Error: PyArmor process returned error code {rc}.\n")
@@ -203,7 +247,7 @@ pause
         finally:
             self.queue.put(("PROCESS_COMPLETE",))
 
-
 if __name__ == "__main__":
     app = ObfuscatorGUI()
     app.mainloop()
+

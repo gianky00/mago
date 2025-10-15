@@ -161,6 +161,23 @@ class ObfuscatorGUI(tk.Tk):
                     shutil.copytree(build_setup_dir, dest_setup_dir)
 
                 self.queue.put("Data files copied.\n")
+
+                # 6. Create avvio.bat launcher
+                self.queue.put("Creating launcher script (avvio.bat)...\n")
+                launcher_path = os.path.join(dest_dir, 'avvio.bat')
+                launcher_content = f'''@echo off
+setlocal
+REM Set PYTHONPATH to the current directory to find pytransform runtime
+set PYTHONPATH=%~dp0
+REM Run the obfuscated application
+python.exe {main_script}
+endlocal
+pause
+'''
+                with open(launcher_path, 'w') as f:
+                    f.write(launcher_content)
+                self.queue.put("Launcher script created.\n")
+
                 self.queue.put(f"\nSUCCESS: Final application is ready in: {dest_dir}\n")
             else:
                 self.queue.put(f"Error: PyArmor process returned error code {rc}.\n")

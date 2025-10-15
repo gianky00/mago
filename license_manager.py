@@ -146,11 +146,12 @@ class LicenseManagerApp(ctk.CTk):
         regfile_path = "C:\\Users\\Coemi\\Desktop\\SCRIPT\\pyarmor-regfile-9329.zip" # Percorso fornito dall'utente
 
         command = [
-            "pyarmor", "licenses",
+            "pyarmor-7", "licenses",
             "--regfile", regfile_path,
             "--expired", formatted_date,
-            "--hardware-info", hwid,
-            "--output", self.output_folder
+            "--bind-hwid", hwid,
+            "-O", self.output_folder,
+            "licenza_prodotto"
         ]
 
         # 3. Esecuzione Comando PyArmor

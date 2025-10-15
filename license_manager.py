@@ -147,7 +147,6 @@ class LicenseManagerApp(ctk.CTk):
 
         command = [
             "pyarmor-7", "licenses",
-            "--regfile", regfile_path,
             "--expired", formatted_date,
             "--bind-hwid", hwid,
             "-O", self.output_folder,
@@ -159,7 +158,7 @@ class LicenseManagerApp(ctk.CTk):
             self.status_label.configure(text="Generazione licenza in corso...", text_color="orange")
             self.update_idletasks() # Forza l'aggiornamento della GUI
 
-            result = subprocess.run(command, capture_output=True, text=True, check=True, shell=True)
+            result = subprocess.run(command, capture_output=True, text=True, check=True)
 
             # 4. Gestione Risultato
             if "license.lic generated successfully" in result.stdout:

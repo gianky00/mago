@@ -7,7 +7,6 @@ setlocal
 set "BUILD_DIR=build"
 set "DIST_DIR=dist"
 set "MAIN_SCRIPT=gui.py"
-set "LICENSE_FILE=license.lic"
 
 :: ============================================================================
 ::  Build Process
@@ -38,17 +37,9 @@ xcopy "file di setup" "%BUILD_DIR%\file di setup\" /E /I /Q
 
 :: 4. Obfuscate the code using PyArmor
 echo Obfuscating scripts...
-pyarmor obfuscate --recursive --output "%DIST_DIR%" "%BUILD_DIR%\%MAIN_SCRIPT%"
+pyarmor-7 obfuscate --recursive --output "%DIST_DIR%" "%BUILD_DIR%\%MAIN_SCRIPT%"
 
-:: 5. Copy the license file
-if exist "%LICENSE_FILE%" (
-    echo Copying license file...
-    copy "%LICENSE_FILE%" "%DIST_DIR%\"
-) else (
-    echo WARNING: license.lic not found. The obfuscated application will not run without it.
-)
-
-:: 6. Create the launcher for the obfuscated application
+:: 5. Create the launcher for the obfuscated application
 echo Creating launcher script...
 (
     echo @echo off

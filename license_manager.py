@@ -6,7 +6,10 @@ import datetime
 import re
 import os
 import sys
-import time # Aggiunto per la pausa
+import time
+import shlex
+import json
+import pathlib
 
 class LicenseManagerApp(ctk.CTk):
     def __init__(self, db_connection):
@@ -104,22 +107,13 @@ class LicenseManagerApp(ctk.CTk):
             self.folder_path_label.configure(text=folder)
 
     def _generate_license(self):
-        scripts_dir = os.path.dirname(sys.executable)
-        pyarmor_cmd = os.path.join(scripts_dir, 'pyarmor-7.exe')
-
-        if not os.path.exists(pyarmor_cmd):
-            pyarmor_cmd = os.path.join(scripts_dir, 'pyarmor-7')
-            if not os.path.exists(pyarmor_cmd):
-                self.status_label.configure(text="Errore: pyarmor-7 non trovato in Scripts del venv.", text_color="red")
-                return
-
         if self.selected_user_id is None:
             self.status_label.configure(text="Errore: Selezionare un utente.", text_color="red")
             return
 
         expiry_date_str = self.expiry_date_entry.get()
         if not re.match(r"^\d{2}/\d{2}/\d{4}$", expiry_date_str):
-            self.status_label.configure(text="Errore: Formato data non valido.", text_color="red")
+            self.status_label.configure(text="Errore: Formato data non valido (GG/MM/AAAA).", text_color="red")
             return
             
         if not self.output_folder:
@@ -134,48 +128,64 @@ class LicenseManagerApp(ctk.CTk):
             return
 
         hwid = self.hwid_entry.get()
-        regfile_path = "C:\\Users\\Coemi\\Desktop\\SCRIPT\\pyarmor-regfile-9329.zip"
+        output_path = self.output_folder
+
+        self.status_label.configure(text="Generazione licenza in corso...", text_color="orange")
+        self.update_idletasks()
 
         try:
-            self.status_label.configure(text="Step 1/2: Registrazione file licenza...", text_color="orange")
+            # --- Tentativo 1: Comando standard ---
+            cmd1 = f'pyarmor gen key -O "{output_path}" -e {formatted_date} -b "{hwid}"'
+            self.status_label.configure(text=f"Eseguo: {cmd1}", text_color="orange")
             self.update_idletasks()
             
-            reg_command = [pyarmor_cmd, "register", regfile_path]
-            subprocess.run(reg_command, capture_output=True, text=True, check=True, encoding='utf-8')
-
-            self.status_label.configure(text="Step 2/2: Generazione del file license.lic...", text_color="orange")
-            self.update_idletasks()
+            proc = subprocess.run(shlex.split(cmd1), capture_output=True, text=True, encoding='utf-8', errors='ignore')
             
-            gen_command = [
-                pyarmor_cmd, "licenses",
-                "--expired", formatted_date,
-                "--bind-disk", hwid,
-                "--output", self.output_folder
-            ]
+            # --- Verifica del successo ---
+            success = False
+            license_file = None
+            p = pathlib.Path(output_path)
+            for ext in ("*.rkey", "*.lic"):
+                matches = list(p.glob(ext))
+                if matches:
+                    license_file = str(matches[0].resolve())
+                    success = True
+                    break
 
-            result = subprocess.run(gen_command, capture_output=True, text=True, check=True, encoding='utf-8')
-            
-            # --- MESSA A PUNTO FINALE ---
-            # Aggiunge una piccola pausa per dare tempo al file system di aggiornarsi
-            time.sleep(0.5)
+            # --- Tentativo 2 (Fallback): Comando con "disk:" ---
+            if not success:
+                self.status_label.configure(text="Primo tentativo fallito. Provo con 'disk:'...", text_color="orange")
+                self.update_idletasks()
+                time.sleep(1)
 
-            expected_file_path = os.path.join(self.output_folder, "license.lic")
-            if os.path.exists(expected_file_path):
-                success, msg = self.db.add_license_record(self.selected_user_id, expiry_date_str)
-                if success:
-                    self.status_label.configure(text=f"Successo! File license.lic generato in '{self.output_folder}' e registrato.", text_color="green")
+                cmd2 = f'pyarmor gen key -O "{output_path}" -e {formatted_date} -b "disk:{hwid}"'
+                self.status_label.configure(text=f"Eseguo: {cmd2}", text_color="orange")
+                self.update_idletasks()
+
+                proc = subprocess.run(shlex.split(cmd2), capture_output=True, text=True, encoding='utf-8', errors='ignore')
+
+                # Riverifica del successo
+                p = pathlib.Path(output_path)
+                for ext in ("*.rkey", "*.lic"):
+                    matches = list(p.glob(ext))
+                    if matches:
+                        license_file = str(matches[0].resolve())
+                        success = True
+                        break
+
+            # --- Gestione del risultato finale ---
+            if success and license_file:
+                db_success, db_msg = self.db.add_license_record(self.selected_user_id, expiry_date_str)
+                if db_success:
+                    self.status_label.configure(text=f"Successo! File licenza creato: {os.path.basename(license_file)}", text_color="green")
                 else:
-                    self.status_label.configure(text=f"Licenza generata, ma fallita registrazione DB: {msg}", text_color="orange")
+                    self.status_label.configure(text=f"Licenza creata, ma fallita registrazione DB: {db_msg}", text_color="orange")
             else:
-                self.status_label.configure(text=f"Errore: PyArmor non ha creato il file. Output: {result.stdout}", text_color="red")
+                error_details = proc.stderr if proc.stderr else proc.stdout
+                self.status_label.configure(text=f"Errore: Generazione fallita. Dettagli: {error_details.strip()}", text_color="red")
 
-        except subprocess.CalledProcessError as e:
-            error_output = e.stderr if e.stderr else e.stdout
-            self.status_label.configure(text=f"Errore da PyArmor: {error_output.strip()}", text_color="red")
         except Exception as e:
-            self.status_label.configure(text=f"Errore sconosciuto: {e}", text_color="red")
-    
-    # ... il resto del codice rimane invariato ...
+            self.status_label.configure(text=f"Errore imprevisto durante l'esecuzione: {e}", text_color="red")
 
     def create_manage_users_tab(self, tab):
         self.selected_user_for_edit = ctk.StringVar()

@@ -124,15 +124,43 @@ class App:
             print("="*50)
 
 if __name__ == "__main__":
-    # Salva stdout e stderr originali per ripristinarli se necessario
-    original_stdout = sys.stdout
-    original_stderr = sys.stderr
-
     try:
+        # This is the PyArmor runtime check
+        from pytransform import pyarmor_runtime
+        pyarmor_runtime()
+
+        # Salva stdout e stderr originali per ripristinarli se necessario
+        original_stdout = sys.stdout
+        original_stderr = sys.stderr
+
+        try:
+            root = tk.Tk()
+            app = App(root)
+            root.mainloop()
+        finally:
+            # Ripristina stdout e stderr quando l'applicazione si chiude
+            sys.stdout = original_stdout
+            sys.stderr = original_stderr
+
+    except ImportError:
+        # This occurs if the pytransform module isn't found (e.g., dev environment)
+        # You can add a simple Tkinter window here to show the error if needed.
+        # For now, we just print and exit.
+        print("Errore: Impossibile trovare i file di runtime di PyArmor.")
+        # Optional: create a simple tkinter error message box
         root = tk.Tk()
-        app = App(root)
-        root.mainloop()
-    finally:
-        # Ripristina stdout e stderr quando l'applicazione si chiude
-        sys.stdout = original_stdout
-        sys.stderr = original_stderr
+        root.withdraw()
+        messagebox.showerror("Errore di Avvio", "Impossibile trovare i file di runtime necessari. L'applicazione non può partire.")
+        sys.exit(1)
+
+    except Exception as e:
+        # This will catch PyArmor's license-related exceptions
+        error_title = "Errore di Licenza"
+        error_message = f"Si è verificato un errore critico relativo alla licenza e l'applicazione non può continuare.\n\nDettagli: {e}"
+
+        # We need a separate, simple Tkinter instance to show the error,
+        # as the main app loop may not have started.
+        root = tk.Tk()
+        root.withdraw()  # Hide the main window
+        messagebox.showerror(error_title, error_message)
+        sys.exit(1)

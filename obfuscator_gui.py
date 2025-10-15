@@ -121,13 +121,12 @@ class ObfuscatorGUI(tk.Tk):
 
             self.queue.put("All source files copied.\n")
 
-            # 4. Obfuscate using modern PyArmor 9+ command
-            self.queue.put("\n--- Running PyArmor (Modern Command) ---\n")
+            # 4. Obfuscate using corrected PyArmor 9+ command
+            self.queue.put("\n--- Running PyArmor (Corrected Modern Command) ---\n")
             command = [
                 "pyarmor", "gen",
-                "--entry", main_script,
                 "--output", dest_dir,
-                build_dir
+                os.path.join(build_dir, main_script)
             ]
 
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -145,8 +144,8 @@ class ObfuscatorGUI(tk.Tk):
             if rc == 0:
                 self.queue.put("Obfuscation successful!\n")
 
-                # The modern `pyarmor gen` command copies all files, so we don't need a separate copy step.
-                # However, we will keep the launcher creation step.
+                # The modern `pyarmor gen` command for an entry script copies all files.
+                # No need for a separate copy step.
 
                 # 5. Create avvio.bat launcher
                 self.queue.put("Creating launcher script (avvio.bat)...\n")

@@ -398,8 +398,10 @@ def run_automation(config):
                                 pyautogui.click(odc_cfg['coordinate_chiudi_commessa_variante']); time.sleep(0.5)
                                 pyautogui.click(odc_cfg['coordinate_non_salvare_commessa_variante']); time.sleep(0.5)
                                 riga_da_saltare = True; break
-                            if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_odc_gia_registrato'], "già registrata", "ODC_Gia_Registrato_Generico", click_coords=odc_cfg.get('coordinate_chiudi_popup_generico')):
-                                print("  SUCCESS: ODC già registrato (caso generico). Salto alla riga successiva.")
+                            if 'regione_popup_odc_gia_registrato' in odc_cfg and controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_odc_gia_registrato'], odc_cfg.get('testo_popup_odc_gia_registrato', 'già registrata'), "ODC_Gia_Registrato"):
+                                print("  --> Rilevato popup 'ODC Già Registrato'. Chiudo le finestre e salto la riga.")
+                                pyautogui.click(odc_cfg['coordinate_chiudi_commessa_variante']); time.sleep(0.5)
+                                pyautogui.click(odc_cfg['coordinate_non_salvare_commessa_variante']); time.sleep(0.5)
                                 riga_da_saltare = True; break
                             if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_screenshot_popup_generico'], odc_cfg['testo_da_cercare_popup_generico'], "Non_Trovato_Commessa"):
                                 print("  INFO: Popup 'non trovato' per Commessa. Avvio registrazione nuovo ODC.")
@@ -411,9 +413,25 @@ def run_automation(config):
                         # Caso 2: Inserimento Matricola
                         elif mapping_item['nome'] == matricola_mapping['nome']:
                             matricola_corretta = False
+                            tentativi_disattivo = 0
+                            TENTATIVI_MAX_DISATTIVO = 3
                             while not matricola_corretta:
+                                # Check 0: Matricola "disattivo"
+                                if 'regione_popup_matricola_disattivo' in odc_cfg and controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_matricola_disattivo'], odc_cfg.get('testo_popup_matricola_disattivo', 'disattivo'), "Matricola_Disattivo"):
+                                    tentativi_disattivo += 1
+                                    if tentativi_disattivo >= TENTATIVI_MAX_DISATTIVO:
+                                        print(f"  ERRORE FATALE: Popup 'disattivo' rilevato {TENTATIVI_MAX_DISATTIVO} volte. Riga saltata.")
+                                        riga_da_saltare = True
+                                        break
+                                    print(f"  --> Rilevato popup 'disattivo' per matricola. Clicco 'No' e riprovo ({tentativi_disattivo}/{TENTATIVI_MAX_DISATTIVO - 1}).")
+                                    pyautogui.click(odc_cfg['coordinate_popup_tasto_no'])
+                                    time.sleep(1.0) # Attesa che il popup si chiuda
+                                    # Riprova a incollare la stessa matricola
+                                    esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
+                                    continue # Ritorna all'inizio del ciclo di while per riverificare
+
                                 # Check 1: Matricola disabilitata
-                                if controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_matricola_disabilitata'], "disabilitata", "Matricola_Disabilitata"):
+                                if 'regione_popup_matricola_disabilitata' in odc_cfg and controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_matricola_disabilitata'], "disabilitata", "Matricola_Disabilitata"):
                                     pyautogui.press('escape') # Chiude il popup di matricola disabilitata
                                     nuova_matricola = mostra_dialogo_input("Matricola Disabilitata", f"La matricola {val_str} è disabilitata.\nInserisci la nuova matricola corretta:")
                                     if nuova_matricola:

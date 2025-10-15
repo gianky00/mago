@@ -57,12 +57,15 @@
             "testo_popup_codice_iva": "Il codice IVA del cliente viene impostato solo nella scheda",
             "coordinate_click_popup_codice_iva": [ 1145, 603 ],
             "regione_popup_matricola_disabilitata": [ 0, 0, 0, 0 ],
-            "regione_popup_odc_gia_registrato": [ 0, 0, 0, 0 ],
             "colonna_nome_dipendente": "F",
             "regione_popup_odc_gia_registrato_specifico": [ 791, 462, 342, 169 ],
+            "coordinate_chiudi_popup_generico": [ 0, 0 ],
+            "regione_popup_matricola_disattivo": [ 797, 461, 333, 170 ],
+            "testo_popup_matricola_disattivo": "disattivo",
+            "regione_popup_odc_gia_registrato": [ 791, 462, 342, 169 ],
+            "testo_popup_odc_gia_registrato": "già registrata",
             "coordinate_chiudi_commessa_variante": [ 330, 62 ],
-            "coordinate_non_salvare_commessa_variante": [ 981, 599 ],
-            "coordinate_chiudi_popup_generico": [ 0, 0 ]
+            "coordinate_non_salvare_commessa_variante": [ 981, 599 ]
           }
         },
         "isabsud": {
@@ -106,12 +109,15 @@
             "testo_popup_codice_iva": "Il codice IVA del cliente viene impostato solo nella scheda",
             "coordinate_click_popup_codice_iva": [ 1145, 603 ],
             "regione_popup_matricola_disabilitata": [ 0, 0, 0, 0 ],
-            "regione_popup_odc_gia_registrato": [ 0, 0, 0, 0 ],
             "colonna_nome_dipendente": "F",
             "regione_popup_odc_gia_registrato_specifico": [ 791, 462, 342, 169 ],
+            "coordinate_chiudi_popup_generico": [ 0, 0 ],
+            "regione_popup_matricola_disattivo": [ 797, 461, 333, 170 ],
+            "testo_popup_matricola_disattivo": "disattivo",
+            "regione_popup_odc_gia_registrato": [ 791, 462, 342, 169 ],
+            "testo_popup_odc_gia_registrato": "già registrata",
             "coordinate_chiudi_commessa_variante": [ 330, 62 ],
-            "coordinate_non_salvare_commessa_variante": [ 981, 599 ],
-            "coordinate_chiudi_popup_generico": [ 0, 0 ]
+            "coordinate_non_salvare_commessa_variante": [ 981, 599 ]
           }
         }
       }

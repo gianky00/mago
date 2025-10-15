@@ -252,6 +252,55 @@ def esegui_incolla_e_tab(config, valore_incollato_str, target_coords, cella_exce
     pyautogui.press('tab')
     time.sleep(timing['ritardo_dopo_tab'])
 
+
+def aggiorna_matricola_excel(config, vecchia_matricola, nuova_matricola):
+    """
+    Cerca una matricola nel foglio 'MATRICOLE' e la aggiorna.
+    """
+    file_cfg = config['file_e_fogli_excel']['impostazioni_file']
+    NOME_FILE_EXCEL = os.path.abspath(file_cfg['percorso_file_excel'])
+    NOME_FOGLIO_MATRICOLE = "MATRICOLE"
+
+    print(f"\n--- AGGIORNAMENTO MATRICOLA IN EXCEL ---")
+    print(f"  File: {os.path.basename(NOME_FILE_EXCEL)}")
+    print(f"  Cerco '{vecchia_matricola}' per sostituirla con '{nuova_matricola}'...")
+
+    wb = None
+    try:
+        wb = openpyxl.load_workbook(NOME_FILE_EXCEL, keep_vba=True)
+        if NOME_FOGLIO_MATRICOLE not in wb.sheetnames:
+            print(f"  ERRORE: Foglio '{NOME_FOGLIO_MATRICOLE}' non trovato nel file Excel.")
+            return False
+
+        sheet = wb[NOME_FOGLIO_MATRICOLE]
+
+        matricola_trovata = False
+        # Itera sulla colonna A a partire dalla riga 2
+        for riga in range(2, sheet.max_row + 1):
+            cella = sheet[f'A{riga}']
+            if str(cella.value).strip() == str(vecchia_matricola).strip():
+                print(f"  --> Trovata corrispondenza alla riga {riga}. Aggiorno il valore...")
+                cella.value = nuova_matricola
+                matricola_trovata = True
+                break
+
+        if not matricola_trovata:
+            print(f"  ATTENZIONE: Matricola '{vecchia_matricola}' non trovata nel foglio '{NOME_FOGLIO_MATRICOLE}'. Nessuna modifica apportata.")
+            return False
+
+        wb.save(NOME_FILE_EXCEL)
+        print("  Salvataggio del file Excel completato.")
+        return True
+
+    except Exception as e:
+        print(f"  ERRORE CRITICO durante l'aggiornamento della matricola in Excel: {e}")
+        traceback.print_exc()
+        return False
+    finally:
+        if wb:
+            wb.close()
+
+
 # --- FUNZIONE PRINCIPALE DI AUTOMAZIONE ---
 def run_automation(config):
     # --- Setup delle configurazioni ---
@@ -414,21 +463,40 @@ def run_automation(config):
                         elif mapping_item['nome'] == matricola_mapping['nome']:
                             matricola_corretta = False
                             tentativi_disattivo = 0
-                            TENTATIVI_MAX_DISATTIVO = 3
+                            TENTATIVI_MAX_DISATTIVO = 2 # Trigger dialog on the second failure
                             while not matricola_corretta:
                                 # Check 0: Matricola "disattivo"
                                 if 'regione_popup_matricola_disattivo' in odc_cfg and controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_matricola_disattivo'], odc_cfg.get('testo_popup_matricola_disattivo', 'disattivo'), "Matricola_Disattivo"):
                                     tentativi_disattivo += 1
+                                    print(f"  --> Rilevato popup 'disattivo' per matricola (Tentativo {tentativi_disattivo}/{TENTATIVI_MAX_DISATTIVO}).")
+                                    pyautogui.click(odc_cfg['coordinate_popup_tasto_no']); time.sleep(1.0)
+
                                     if tentativi_disattivo >= TENTATIVI_MAX_DISATTIVO:
-                                        print(f"  ERRORE FATALE: Popup 'disattivo' rilevato {TENTATIVI_MAX_DISATTIVO} volte. Riga saltata.")
-                                        riga_da_saltare = True
-                                        break
-                                    print(f"  --> Rilevato popup 'disattivo' per matricola. Clicco 'No' e riprovo ({tentativi_disattivo}/{TENTATIVI_MAX_DISATTIVO - 1}).")
-                                    pyautogui.click(odc_cfg['coordinate_popup_tasto_no'])
-                                    time.sleep(1.0) # Attesa che il popup si chiuda
-                                    # Riprova a incollare la stessa matricola
-                                    esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
-                                    continue # Ritorna all'inizio del ciclo di while per riverificare
+                                        # Second attempt failed, show dialog to user
+                                        col_nome = odc_cfg.get('colonna_nome_dipendente', 'F')
+                                        nome_dipendente = riga_obj['dati_colonne'].get(col_nome, '[NOME NON TROVATO]')
+                                        messaggio = f"La matricola {val_str} per {nome_dipendente} è ancora disattivata.\n\nInserisci la nuova matricola corretta:"
+                                        nuova_matricola = mostra_dialogo_input("Matricola Disattivata", messaggio)
+
+                                        if nuova_matricola and nuova_matricola.strip():
+                                            vecchia_matricola = val_str
+                                            val_str = nuova_matricola.strip() # Update with new value
+                                            print(f"  INPUT: Nuova matricola '{val_str}' fornita. Verrà aggiornata in Excel e riprovata.")
+
+                                            # Call the new function to update the Excel file
+                                            aggiorna_matricola_excel(config, vecchia_matricola, val_str)
+
+                                            tentativi_disattivo = 0 # Reset counter for the new matricola
+                                            esegui_incolla_e_tab(config, val_str, (target_x, y_target), "matricola_sostitutiva_disattivo")
+                                            continue
+                                        else:
+                                            print("  WARNING: L'utente ha annullato l'inserimento della nuova matricola. Riga saltata.")
+                                            riga_da_saltare = True
+                                            break # Exit while loop
+                                    else: # First attempt failed, just retry
+                                        print("  ...Riprovo a inserire la stessa matricola.")
+                                        esegui_incolla_e_tab(config, val_str, (target_x, y_target), cella_id)
+                                        continue
 
                                 # Check 1: Matricola disabilitata
                                 if 'regione_popup_matricola_disabilitata' in odc_cfg and controlla_regione_per_testo(config, odc_cfg, odc_cfg['regione_popup_matricola_disabilitata'], "disabilitata", "Matricola_Disabilitata"):

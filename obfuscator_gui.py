@@ -11,22 +11,36 @@ class ObfuscatorGUI(tk.Tk):
     def __init__(self):
         super().__init__()
         self.title("Application Obfuscator")
-        self.geometry("600x400")
+        self.geometry("600x450") # Increased height for new widget
         self.destination_path = tk.StringVar()
+        self.license_path = tk.StringVar()
         self.queue = queue.Queue()
 
-        # Frame for path selection
-        path_frame = tk.Frame(self, pady=10)
-        path_frame.pack(fill='x', padx=10)
+        # Frame for destination path selection
+        dest_path_frame = tk.Frame(self, pady=5)
+        dest_path_frame.pack(fill='x', padx=10, pady=(10,0))
 
-        path_label = tk.Label(path_frame, text="Destination Folder:")
-        path_label.pack(side='left')
+        dest_path_label = tk.Label(dest_path_frame, text="Destination Folder:")
+        dest_path_label.pack(side='left')
 
-        self.path_entry = tk.Entry(path_frame, textvariable=self.destination_path, state='readonly', width=60)
-        self.path_entry.pack(side='left', expand=True, fill='x', padx=5)
+        self.dest_path_entry = tk.Entry(dest_path_frame, textvariable=self.destination_path, state='readonly', width=50)
+        self.dest_path_entry.pack(side='left', expand=True, fill='x', padx=5)
 
-        self.browse_button = tk.Button(path_frame, text="Browse...", command=self.select_destination)
-        self.browse_button.pack(side='left')
+        self.browse_dest_button = tk.Button(dest_path_frame, text="Browse...", command=self.select_destination)
+        self.browse_dest_button.pack(side='left')
+
+        # Frame for license file selection
+        license_path_frame = tk.Frame(self, pady=5)
+        license_path_frame.pack(fill='x', padx=10)
+
+        license_path_label = tk.Label(license_path_frame, text="License File (.lic):")
+        license_path_label.pack(side='left')
+
+        self.license_path_entry = tk.Entry(license_path_frame, textvariable=self.license_path, state='readonly', width=50)
+        self.license_path_entry.pack(side='left', expand=True, fill='x', padx=5)
+
+        self.browse_license_button = tk.Button(license_path_frame, text="Browse...", command=self.select_license_file)
+        self.browse_license_button.pack(side='left')
 
         # Start Button
         self.start_button = tk.Button(self, text="Start Obfuscation", command=self.start_obfuscation, state='disabled', font=('Helvetica', 12, 'bold'), pady=10)
@@ -52,16 +66,29 @@ class ObfuscatorGUI(tk.Tk):
         path = filedialog.askdirectory(title="Select Destination Folder")
         if path:
             self.destination_path.set(path)
-            self.start_button.config(state='normal')
+            if self.license_path.get():
+                self.start_button.config(state='normal')
             self._update_status(f"Destination set to: {path}\n")
 
+    def select_license_file(self):
+        path = filedialog.askopenfilename(
+            title="Select license.lic file",
+            filetypes=[("License files", "*.lic"), ("All files", "*.*")]
+        )
+        if path:
+            self.license_path.set(path)
+            if self.destination_path.get():
+                self.start_button.config(state='normal')
+            self._update_status(f"License file set to: {path}\n")
+
     def start_obfuscation(self):
-        if not self.destination_path.get():
-            messagebox.showerror("Error", "Please select a destination folder first.")
+        if not self.destination_path.get() or not self.license_path.get():
+            messagebox.showerror("Error", "Please select both a destination folder and a license file.")
             return
 
         self.start_button.config(state='disabled')
-        self.browse_button.config(state='disabled')
+        self.browse_dest_button.config(state='disabled')
+        self.browse_license_button.config(state='disabled')
         self.status_text.config(state='normal')
         self.status_text.delete('1.0', tk.END)
         self.status_text.config(state='disabled')
@@ -80,7 +107,8 @@ class ObfuscatorGUI(tk.Tk):
                 message = self.queue.get_nowait()
                 if isinstance(message, tuple) and message[0] == "PROCESS_COMPLETE":
                     self.start_button.config(state='normal')
-                    self.browse_button.config(state='normal')
+                    self.browse_dest_button.config(state='normal')
+                    self.browse_license_button.config(state='normal')
                     # Clean up build directory
                     build_dir = "build"
                     if os.path.exists(build_dir):
@@ -95,6 +123,7 @@ class ObfuscatorGUI(tk.Tk):
         try:
             build_dir = "build"
             dest_dir = self.destination_path.get()
+            license_src_path = self.license_path.get()
             main_script = "gui.py"
             source_dir = os.path.dirname(os.path.abspath(__file__))
 
@@ -144,16 +173,18 @@ class ObfuscatorGUI(tk.Tk):
             if rc == 0:
                 self.queue.put("Obfuscation successful!\n")
 
-                # The modern `pyarmor gen` command for an entry script copies all files.
-                # No need for a separate copy step.
+                # 5. Copy selected license file
+                self.queue.put(f"Copying license file to {dest_dir}...\n")
+                shutil.copy(license_src_path, os.path.join(dest_dir, 'license.lic'))
+                self.queue.put("License file copied.\n")
 
-                # 5. Create avvio.bat launcher
+                # 6. Create avvio.bat launcher
                 self.queue.put("Creating launcher script (avvio.bat)...\n")
                 launcher_path = os.path.join(dest_dir, 'avvio.bat')
                 launcher_content = f'''@echo off
 setlocal
-REM Set PYTHONPATH to the current directory to find pytransform runtime
-set PYTHONPATH=%~dp0
+REM Change directory to the script's location to ensure all DLLs are found
+cd /d %~dp0
 REM Run the obfuscated application
 python.exe {main_script}
 endlocal

@@ -121,13 +121,13 @@ class ObfuscatorGUI(tk.Tk):
 
             self.queue.put("All source files copied.\n")
 
-            # 4. Obfuscate
-            self.queue.put("\n--- Running PyArmor ---\n")
+            # 4. Obfuscate using modern PyArmor 9+ command
+            self.queue.put("\n--- Running PyArmor (Modern Command) ---\n")
             command = [
-                "pyarmor-7", "obfuscate",
-                "--recursive",
+                "pyarmor", "gen",
+                "--entry", main_script,
                 "--output", dest_dir,
-                os.path.join(build_dir, main_script)
+                build_dir
             ]
 
             process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, creationflags=subprocess.CREATE_NO_WINDOW)
@@ -145,24 +145,10 @@ class ObfuscatorGUI(tk.Tk):
             if rc == 0:
                 self.queue.put("Obfuscation successful!\n")
 
-                # 5. Copy non-Python files to destination
-                self.queue.put("Copying data files to destination...\n")
-                data_files_to_copy = glob.glob(os.path.join(build_dir, '*.json')) + \
-                                     glob.glob(os.path.join(build_dir, '*.db')) + \
-                                     glob.glob(os.path.join(build_dir, '*.xlsm'))
-                for f in data_files_to_copy:
-                    shutil.copy(f, dest_dir)
+                # The modern `pyarmor gen` command copies all files, so we don't need a separate copy step.
+                # However, we will keep the launcher creation step.
 
-                build_setup_dir = os.path.join(build_dir, 'file di setup')
-                dest_setup_dir = os.path.join(dest_dir, 'file di setup')
-                if os.path.exists(build_setup_dir):
-                    if os.path.exists(dest_setup_dir):
-                        shutil.rmtree(dest_setup_dir)
-                    shutil.copytree(build_setup_dir, dest_setup_dir)
-
-                self.queue.put("Data files copied.\n")
-
-                # 6. Create avvio.bat launcher
+                # 5. Create avvio.bat launcher
                 self.queue.put("Creating launcher script (avvio.bat)...\n")
                 launcher_path = os.path.join(dest_dir, 'avvio.bat')
                 launcher_content = f'''@echo off

@@ -150,7 +150,7 @@ class ObfuscatorGUI(tk.Tk):
             self.queue.put("\n--- Running PyArmor ---\n")
             command = [
                 "pyarmor", "gen",
-                "--with-license", "outer",
+                "--outer",
                 "--output", os.path.abspath(dest_dir),
             ] + all_scripts
             

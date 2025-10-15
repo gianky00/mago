@@ -149,25 +149,24 @@ class LicenseManagerApp(ctk.CTk):
 
         # 3. Esecuzione sequenziale dei comandi PyArmor 9
         try:
-            # PASSO 1: Registrazione del file di licenza PyArmor
-            self.status_label.configure(text="Step 1/3: Registrazione file licenza...", text_color="orange")
+            # PASSO 1: Registrazione del file di licenza PyArmor (necessario per l'autenticazione)
+            self.status_label.configure(text="Step 1/2: Registrazione file licenza...", text_color="orange")
             self.update_idletasks()
             reg_command = ["pyarmor", "reg", regfile_path]
             subprocess.run(reg_command, capture_output=True, text=True, check=True)
 
-            # PASSO 2: Configurazione dei parametri della licenza
-            self.status_label.configure(text="Step 2/3: Configurazione parametri (scadenza, HWID)...", text_color="orange")
+            # PASSO 2: Generazione diretta della licenza con tutti i parametri
+            self.status_label.configure(text="Step 2/2: Generazione del file license.lic...", text_color="orange")
             self.update_idletasks()
-            cfg_command = ["pyarmor", "cfg", "--expired", formatted_date, "--bind-hwid", hwid]
-            subprocess.run(cfg_command, capture_output=True, text=True, check=True)
-
-            # PASSO 3: Generazione del file license.lic
-            self.status_label.configure(text="Step 3/3: Generazione del file license.lic...", text_color="orange")
-            self.update_idletasks()
-            gen_command = ["pyarmor", "gen", "license", "--output", self.output_folder]
+            gen_command = [
+                "pyarmor", "gen", "license",
+                "--expired", formatted_date,
+                "--bind-hwid", hwid,
+                "--output", self.output_folder
+            ]
             subprocess.run(gen_command, capture_output=True, text=True, check=True)
 
-            # 4. Successo e registrazione nel database
+            # 3. Successo e registrazione nel database
             success, msg = self.db.add_license_record(self.selected_user_id, expiry_date_str)
             if success:
                 self.status_label.configure(text=f"Successo! File license.lic generato in '{self.output_folder}' e registrato.", text_color="green")

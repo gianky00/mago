@@ -119,7 +119,9 @@ class LicenseManagerApp(ctk.CTk):
             self.folder_path_label.configure(text=folder)
 
     def _generate_license(self):
-        """Logica per la generazione della licenza."""
+        """
+        Logica per la generazione della licenza utilizzando la sintassi moderna di PyArmor 9.
+        """
         # 1. Validazione Input
         if self.selected_user_id is None:
             self.status_label.configure(text="Errore: Selezionare un utente.", text_color="red")
@@ -134,7 +136,7 @@ class LicenseManagerApp(ctk.CTk):
             self.status_label.configure(text="Errore: Selezionare una cartella di destinazione.", text_color="red")
             return
 
-        # 2. Conversione Data e preparazione comando
+        # 2. Conversione Data e preparazione dati
         try:
             date_obj = datetime.datetime.strptime(expiry_date_str, "%d/%m/%Y")
             formatted_date = date_obj.strftime("%Y-%m-%d")
@@ -143,38 +145,41 @@ class LicenseManagerApp(ctk.CTk):
             return
 
         hwid = self.hwid_entry.get()
-        regfile_path = "C:\\Users\\Coemi\\Desktop\\SCRIPT\\pyarmor-regfile-9329.zip" # Percorso fornito dall'utente
+        regfile_path = "C:\\Users\\Coemi\\Desktop\\SCRIPT\\pyarmor-regfile-9329.zip"
 
-        command = [
-            "pyarmor-7", "licenses",
-            "--expired", formatted_date,
-            "--bind-hwid", hwid,
-            "-O", self.output_folder,
-            "licenza_prodotto"
-        ]
-
-        # 3. Esecuzione Comando PyArmor
+        # 3. Esecuzione sequenziale dei comandi PyArmor 9
         try:
-            self.status_label.configure(text="Generazione licenza in corso...", text_color="orange")
-            self.update_idletasks() # Forza l'aggiornamento della GUI
+            # PASSO 1: Registrazione del file di licenza PyArmor
+            self.status_label.configure(text="Step 1/3: Registrazione file licenza...", text_color="orange")
+            self.update_idletasks()
+            reg_command = ["pyarmor", "reg", regfile_path]
+            subprocess.run(reg_command, capture_output=True, text=True, check=True)
 
-            result = subprocess.run(command, capture_output=True, text=True, check=True)
+            # PASSO 2: Configurazione dei parametri della licenza
+            self.status_label.configure(text="Step 2/3: Configurazione parametri (scadenza, HWID)...", text_color="orange")
+            self.update_idletasks()
+            cfg_command = ["pyarmor", "cfg", "--expired", formatted_date, "--bind-hwid", hwid]
+            subprocess.run(cfg_command, capture_output=True, text=True, check=True)
 
-            # 4. Gestione Risultato
-            if "license.lic generated successfully" in result.stdout:
-                # 5. Registrazione nel Database
-                success, msg = self.db.add_license_record(self.selected_user_id, expiry_date_str)
-                if success:
-                    self.status_label.configure(text=f"Successo! File license.lic generato e registrato nello storico.", text_color="green")
-                else:
-                    self.status_label.configure(text=f"Successo, ma fallita registrazione DB: {msg}", text_color="orange")
+            # PASSO 3: Generazione del file license.lic
+            self.status_label.configure(text="Step 3/3: Generazione del file license.lic...", text_color="orange")
+            self.update_idletasks()
+            gen_command = ["pyarmor", "gen", "license", "--output", self.output_folder]
+            subprocess.run(gen_command, capture_output=True, text=True, check=True)
+
+            # 4. Successo e registrazione nel database
+            success, msg = self.db.add_license_record(self.selected_user_id, expiry_date_str)
+            if success:
+                self.status_label.configure(text=f"Successo! File license.lic generato in '{self.output_folder}' e registrato.", text_color="green")
             else:
-                self.status_label.configure(text=f"Errore inatteso: {result.stdout}", text_color="red")
+                self.status_label.configure(text=f"Licenza generata, ma fallita registrazione DB: {msg}", text_color="orange")
 
         except FileNotFoundError:
-             self.status_label.configure(text="Errore: 'pyarmor' non trovato. Assicurati che sia nel PATH di sistema.", text_color="red")
+             self.status_label.configure(text="Errore: Comando 'pyarmor' non trovato. Assicurati che sia nel PATH.", text_color="red")
         except subprocess.CalledProcessError as e:
-            self.status_label.configure(text=f"Errore durante l'esecuzione di PyArmor: {e.stderr}", text_color="red")
+            # Mostra l'errore specifico restituito da PyArmor
+            error_output = e.stderr if e.stderr else e.stdout
+            self.status_label.configure(text=f"Errore da PyArmor: {error_output.strip()}", text_color="red")
         except Exception as e:
             self.status_label.configure(text=f"Errore sconosciuto: {e}", text_color="red")
 

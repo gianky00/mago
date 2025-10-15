@@ -331,15 +331,13 @@ def run_automation(config):
     except Exception as e:
         print(f"ATTENZIONE: Impossibile impostare hotkey: {e}")
 
-    if file_cfg['forzare_ricalcolo_excel']:
-        if WIN32_AVAILABLE:
-            if not force_excel_recalculation(NOME_FILE_EXCEL):
-                print("ERRORE CRITICO: Ricalcolo Excel fallito.")
-                return
-        else:
-            print("ATTENZIONE: Ricalcolo abilitato ma pywin32 non disponibile.")
+    # Forza il ricalcolo di Excel se la libreria è disponibile, per garantire che i dati siano aggiornati.
+    if WIN32_AVAILABLE:
+        if not force_excel_recalculation(NOME_FILE_EXCEL):
+            print("ERRORE CRITICO: Il ricalcolo del file Excel è fallito. I dati potrebbero non essere aggiornati.")
+            # Non interrompere l'esecuzione, ma procedere con un avviso.
     else:
-        print("INFO: Ricalcolo forzato di Excel disabilitato.")
+        print("ATTENZIONE: La libreria 'pywin32' non è installata. Impossibile forzare il ricalcolo di Excel.")
 
     print(f"\nFASE 1: Lettura dati da '{os.path.basename(NOME_FILE_EXCEL)}'...")
 

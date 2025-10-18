@@ -258,11 +258,19 @@ class ObfuscatorApp(ctk.CTk):
         try:
             while True:
                 message = self.license_queue.get_nowait()
-                if isinstance(message, tuple) and message[0] == "LICENSE_PROCESS_COMPLETE":
-                    self.generate_license_button.configure(state='normal')
-                    self._update_license_status("\n--- Ready for next operation. ---\n")
-                    self._refresh_license_history() # Refresh history after generation
-                    break
+                if isinstance(message, tuple):
+                    if message[0] == "ADD_LICENSE_RECORD":
+                        user_id, expiry_date = message[1], message[2]
+                        db_success, db_msg = self.db.add_license_record(user_id, expiry_date)
+                        if db_success:
+                            self._update_license_status("Successfully recorded in history.\n")
+                        else:
+                            self._update_license_status(f"WARNING: Failed to record in history: {db_msg}\n")
+                    elif message[0] == "LICENSE_PROCESS_COMPLETE":
+                        self.generate_license_button.configure(state='normal')
+                        self._update_license_status("\n--- Ready for next operation. ---\n")
+                        self._refresh_license_history()  # Refresh history after generation
+                        break
                 else:
                     self._update_license_status(message)
         except queue.Empty:
@@ -553,12 +561,9 @@ class ObfuscatorApp(ctk.CTk):
             queue_obj.put(f"Final STDERR:\n{final_proc.stderr}\n")
 
             if success:
-                # Add record to database
-                db_success, db_msg = self.db.add_license_record(user_id, expiry_date)
-                if db_success:
-                    queue_obj.put("\n--- SUCCESS! ---\nLicense key created and recorded in history.\n")
-                else:
-                    queue_obj.put(f"\n--- WARNING ---\nLicense key created, but failed to record in history: {db_msg}\n")
+                # Pass data back to the main thread to be added to the database
+                queue_obj.put(("ADD_LICENSE_RECORD", user_id, expiry_date))
+                queue_obj.put("\n--- SUCCESS! ---\nLicense key created. Recording to history...\n")
             else:
                 error_details = final_proc.stderr if final_proc.stderr else final_proc.stdout
                 raise RuntimeError(f"License generation failed. Details: {error_details.strip()}")

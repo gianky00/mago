@@ -7,6 +7,7 @@ import os
 import glob
 import queue
 import sys
+import tempfile
 
 class ObfuscatorApp(tk.Tk):
     def __init__(self):
@@ -385,29 +386,80 @@ pause
                 queue_obj.put(f"Warning: License file not found at '{license_path}'\n")
         queue_obj.put("--- Asset Copying Finished ---\n\n")
 
-        # 7. Create portable Python runtime
-        queue_obj.put("--- Creating Portable Python Runtime ---\n")
-        python_dir = os.path.dirname(sys.executable)
-        runtime_files = [
-            'python.exe', 'pythonw.exe', 'python3.dll',
-            f'python{sys.version_info.major}{sys.version_info.minor}.dll',
-            'vcruntime140.dll', 'vcruntime140_1.dll'
-        ]
-        for filename in runtime_files:
-            src_path = os.path.join(python_dir, filename)
-            if os.path.exists(src_path):
-                queue_obj.put(f"  - Copying {filename}...\n")
-                shutil.copy(src_path, dest_dir)
+        # 7. Create portable Python runtime by downloading the embeddable package
+        queue_obj.put("--- Setting up Portable Python Runtime ---\n")
 
-        for folder in ['DLLs', 'Lib', 'tcl']:
-            src_path = os.path.join(python_dir, folder)
-            dest_path = os.path.join(dest_dir, folder)
-            if os.path.exists(src_path):
-                queue_obj.put(f"  - Copying '{folder}' subfolder...\n")
-                if os.path.exists(dest_path):
-                    shutil.rmtree(dest_path)
-                shutil.copytree(src_path, dest_path)
-        queue_obj.put("--- Portable Runtime Created Successfully ---\n\n")
+        # Determine Python version to download
+        py_version = ".".join(map(str, sys.version_info[:3]))
+        py_version_major_minor = ".".join(map(str, sys.version_info[:2]))
+        queue_obj.put(f"Current Python version detected: {py_version}\n")
+
+        # Construct download URL and cache path
+        url = f"https://www.python.org/ftp/python/{py_version}/python-{py_version}-embed-amd64.zip"
+        cache_dir = os.path.join(tempfile.gettempdir(), "py_embed_cache")
+        os.makedirs(cache_dir, exist_ok=True)
+        zip_path = os.path.join(cache_dir, os.path.basename(url))
+
+        queue_obj.put(f"Download URL: {url}\n")
+        queue_obj.put(f"Cache path: {zip_path}\n")
+
+        # Download if not cached
+        if not os.path.exists(zip_path):
+            try:
+                import urllib.request
+                queue_obj.put(f"Downloading Python embeddable package...\n")
+
+                # Simple progress bar logic
+                def show_progress(block_num, block_size, total_size):
+                    downloaded = block_num * block_size
+                    if total_size > 0:
+                        percent = downloaded * 100 / total_size
+                        queue_obj.put(f"\r  -> {percent:.1f}% of {total_size/1024/1024:.2f} MB",)
+
+                urllib.request.urlretrieve(url, zip_path, show_progress)
+                queue_obj.put("\nDownload complete.\n")
+            except Exception as e:
+                raise RuntimeError(f"Failed to download Python package from {url}. Error: {e}")
+        else:
+            queue_obj.put("Python package found in cache.\n")
+
+        # Extract the zip file to the destination directory
+        try:
+            import zipfile
+            queue_obj.put(f"Extracting Python runtime to {dest_dir}...\n")
+            with zipfile.ZipFile(zip_path, 'r') as zip_ref:
+                zip_ref.extractall(dest_dir)
+            queue_obj.put("Extraction complete.\n")
+
+            # --- Install Tkinter ---
+            queue_obj.put("Installing Tkinter for the new runtime...\n")
+
+            # 1. Find the ._pth file to enable site-packages
+            pth_files = glob.glob(os.path.join(dest_dir, 'python*._pth'))
+            if not pth_files:
+                raise FileNotFoundError("Could not find the ._pth file in the extracted Python runtime.")
+
+            with open(pth_files[0], 'a') as f:
+                f.write("\nimport site\n")
+
+            # 2. Get pip
+            get_pip_url = "https://bootstrap.pypa.io/get-pip.py"
+            get_pip_path = os.path.join(cache_dir, "get-pip.py")
+            if not os.path.exists(get_pip_path):
+                urllib.request.urlretrieve(get_pip_url, get_pip_path)
+
+            # 3. Run get-pip.py with the new python.exe
+            new_python_exe = os.path.join(dest_dir, "python.exe")
+            subprocess.check_call([new_python_exe, get_pip_path])
+
+            # 4. Use the new pip to install tk
+            new_pip_exe = os.path.join(dest_dir, "Scripts", "pip.exe")
+            subprocess.check_call([new_pip_exe, "install", "tk"])
+
+            queue_obj.put("Tkinter installed successfully.\n")
+
+        except Exception as e:
+            raise RuntimeError(f"Failed to setup Python runtime. Error: {e}")
         queue_obj.put("====== OBFUSCATION COMPLETE ======\n")
         queue_obj.put(f"Final application is ready in: {dest_dir}\n")
 

@@ -6,3 +6,4 @@ Pillow
 pytesseract
 screeninfo
 customtkinter
+pywin32

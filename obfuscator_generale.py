@@ -17,12 +17,15 @@ import urllib.request # Mantenuto per la generazione licenza, se necessario
 # import zipfile # Non più necessario senza Python embeddable
 import traceback # Importato per logging errori
 import fnmatch # Importato per la copia degli asset
+import customtkinter as ctk
+from database import Database
 
-class ObfuscatorApp(tk.Tk):
-    def __init__(self):
+class ObfuscatorApp(ctk.CTk):
+    def __init__(self, db_connection):
         super().__init__()
+        self.db = db_connection
         self.title("General Obfuscator and License Manager")
-        self.geometry("700x550")
+        self.geometry("800x600")
 
         # Variabili per i percorsi e dati
         self.source_path = tk.StringVar()
@@ -32,100 +35,109 @@ class ObfuscatorApp(tk.Tk):
         self.obfuscation_queue = queue.Queue()
         self.license_queue = queue.Queue()
 
+        self.user_data_map = {}
+        self.selected_license_id = tk.StringVar()
+
+        ctk.set_appearance_mode("System")
+        ctk.set_default_color_theme("blue")
+
         # Creazione del Notebook per le schede
-        self.notebook = ttk.Notebook(self)
+        self.notebook = ctk.CTkTabview(self, width=780, height=580)
         self.notebook.pack(expand=True, fill='both', padx=10, pady=10)
 
         # Creazione dei frame per le schede
-        self.obfuscator_tab = ttk.Frame(self.notebook)
-        self.license_tab = ttk.Frame(self.notebook)
+        self.notebook.add('Obfuscator')
+        self.notebook.add('License Manager')
+        self.notebook.add("Storico Licenze")
 
-        self.notebook.add(self.obfuscator_tab, text='Obfuscator')
-        self.notebook.add(self.license_tab, text='License Manager')
+        self.obfuscator_tab = self.notebook.tab('Obfuscator')
+        self.license_tab = self.notebook.tab('License Manager')
+        self.license_history_tab = self.notebook.tab("Storico Licenze")
+
 
         self.create_obfuscator_tab()
         self.create_license_tab()
+        self.create_license_history_tab()
+        self._refresh_user_dropdown()
 
     def create_license_tab(self):
         # Variabili per la generazione licenza
         self.expiry_date = tk.StringVar()
         self.device_id = tk.StringVar()
 
-        # Frame per i campi di input
-        input_frame = tk.Frame(self.license_tab, pady=5)
-        input_frame.pack(fill='x', padx=10, pady=(10,0))
+        input_frame = ctk.CTkFrame(self.license_tab, fg_color="transparent")
+        input_frame.pack(fill='x', padx=20, pady=(20,10))
+        input_frame.grid_columnconfigure(1, weight=1)
 
-        tk.Label(input_frame, text="Expiry Date (YYYY-MM-DD):").grid(row=0, column=0, sticky='w', padx=5, pady=5)
-        self.expiry_entry = tk.Entry(input_frame, textvariable=self.expiry_date, width=40)
-        self.expiry_entry.grid(row=0, column=1, sticky='ew', padx=5, pady=5)
+        ctk.CTkLabel(input_frame, text="Expiry Date (YYYY-MM-DD):").grid(row=0, column=0, sticky='w', padx=5, pady=10)
+        self.expiry_entry = ctk.CTkEntry(input_frame, textvariable=self.expiry_date, width=250)
+        self.expiry_entry.grid(row=0, column=1, sticky='ew', padx=5, pady=10)
 
-        tk.Label(input_frame, text="Device ID:").grid(row=1, column=0, sticky='w', padx=5, pady=5)
-        self.device_id_entry = tk.Entry(input_frame, textvariable=self.device_id, width=40)
-        self.device_id_entry.grid(row=1, column=1, sticky='ew', padx=5, pady=5)
+        ctk.CTkLabel(input_frame, text="Device ID:").grid(row=1, column=0, sticky='w', padx=5, pady=10)
+        self.device_id_entry = ctk.CTkEntry(input_frame, textvariable=self.device_id, width=250)
+        self.device_id_entry.grid(row=1, column=1, sticky='ew', padx=5, pady=10)
 
-        input_frame.columnconfigure(1, weight=1)
+        self.generate_license_button = ctk.CTkButton(self.license_tab, text="Generate License Key", command=self.start_license_generation)
+        self.generate_license_button.pack(pady=20, padx=20)
 
-        # Pulsante di generazione
-        self.generate_license_button = tk.Button(self.license_tab, text="Generate License Key", command=self.start_license_generation, font=('Helvetica', 12, 'bold'), pady=10)
-        self.generate_license_button.pack(pady=10)
-
-        # Area di stato per la licenza
-        license_status_frame = tk.Frame(self.license_tab, pady=10)
-        license_status_frame.pack(expand=True, fill='both', padx=10)
-        tk.Label(license_status_frame, text="Status:").pack(anchor='w')
-        self.license_status_text = tk.Text(license_status_frame, height=10, state='disabled', bg='black', fg='white', font=('Courier', 9))
+        license_status_frame = ctk.CTkFrame(self.license_tab, fg_color="transparent")
+        license_status_frame.pack(expand=True, fill='both', padx=20, pady=10)
+        ctk.CTkLabel(license_status_frame, text="Status:").pack(anchor='w')
+        self.license_status_text = ctk.CTkTextbox(license_status_frame, state='disabled', fg_color="black")
         self.license_status_text.pack(expand=True, fill='both')
 
     def create_obfuscator_tab(self):
-        # Frame per la selezione del percorso di origine
-        source_frame = tk.Frame(self.obfuscator_tab, pady=5)
-        source_frame.pack(fill='x', padx=10, pady=(10,0))
-        tk.Label(source_frame, text="Source Folder:").pack(side='left')
-        self.source_entry = tk.Entry(source_frame, textvariable=self.source_path, state='readonly', width=50)
-        self.source_entry.pack(side='left', expand=True, fill='x', padx=5)
-        self.browse_source_button = tk.Button(source_frame, text="Browse...", command=self.select_source)
-        self.browse_source_button.pack(side='left')
+        source_frame = ctk.CTkFrame(self.obfuscator_tab, fg_color="transparent")
+        source_frame.pack(fill='x', padx=20, pady=(20, 10))
+        source_frame.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(source_frame, text="Source Folder:").grid(row=0, column=0, sticky='w', padx=5)
+        self.source_entry = ctk.CTkEntry(source_frame, textvariable=self.source_path, state='readonly')
+        self.source_entry.grid(row=0, column=1, sticky='ew', padx=5)
+        self.browse_source_button = ctk.CTkButton(source_frame, text="Browse...", command=self.select_source, width=80)
+        self.browse_source_button.grid(row=0, column=2, padx=(5,0))
 
-        # Frame per la selezione del percorso di destinazione
-        dest_frame = tk.Frame(self.obfuscator_tab, pady=5)
-        dest_frame.pack(fill='x', padx=10)
-        tk.Label(dest_frame, text="Destination Folder:").pack(side='left')
-        self.dest_entry = tk.Entry(dest_frame, textvariable=self.destination_path, state='readonly', width=50)
-        self.dest_entry.pack(side='left', expand=True, fill='x', padx=5)
-        self.browse_dest_button = tk.Button(dest_frame, text="Browse...", command=self.select_destination)
-        self.browse_dest_button.pack(side='left')
+        dest_frame = ctk.CTkFrame(self.obfuscator_tab, fg_color="transparent")
+        dest_frame.pack(fill='x', padx=20, pady=10)
+        dest_frame.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(dest_frame, text="Destination Folder:").grid(row=0, column=0, sticky='w', padx=5)
+        self.dest_entry = ctk.CTkEntry(dest_frame, textvariable=self.destination_path, state='readonly')
+        self.dest_entry.grid(row=0, column=1, sticky='ew', padx=5)
+        self.browse_dest_button = ctk.CTkButton(dest_frame, text="Browse...", command=self.select_destination, width=80)
+        self.browse_dest_button.grid(row=0, column=2, padx=(5,0))
 
-        # Frame per la selezione del file di licenza
-        license_frame = tk.Frame(self.obfuscator_tab, pady=5)
-        license_frame.pack(fill='x', padx=10)
-        tk.Label(license_frame, text="License File (optional):").pack(side='left')
-        self.license_entry = tk.Entry(license_frame, textvariable=self.license_path, state='readonly', width=50)
-        self.license_entry.pack(side='left', expand=True, fill='x', padx=5)
-        self.browse_license_button = tk.Button(license_frame, text="Browse...", command=self.select_license)
-        self.browse_license_button.pack(side='left')
+        license_frame = ctk.CTkFrame(self.obfuscator_tab, fg_color="transparent")
+        license_frame.pack(fill='x', padx=20, pady=10)
+        license_frame.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(license_frame, text="License File (optional):").grid(row=0, column=0, sticky='w', padx=5)
+        self.license_entry = ctk.CTkEntry(license_frame, textvariable=self.license_path, state='readonly')
+        self.license_entry.grid(row=0, column=1, sticky='ew', padx=5)
+        self.browse_license_button = ctk.CTkButton(license_frame, text="Browse...", command=self.select_license, width=80)
+        self.browse_license_button.grid(row=0, column=2, padx=(5,0))
 
-        # Pulsante di avvio
-        self.start_button = tk.Button(self.obfuscator_tab, text="Start Obfuscation", command=self.start_obfuscation, state='disabled', font=('Helvetica', 12, 'bold'), pady=10)
-        self.start_button.pack(pady=10)
+        self.start_button = ctk.CTkButton(self.obfuscator_tab, text="Start Obfuscation", command=self.start_obfuscation, state='disabled')
+        self.start_button.pack(pady=20, padx=20)
 
-        # Area di stato
-        status_frame = tk.Frame(self.obfuscator_tab, pady=10)
-        status_frame.pack(expand=True, fill='both', padx=10)
-        tk.Label(status_frame, text="Status:").pack(anchor='w')
-        self.obfuscation_status_text = tk.Text(status_frame, height=10, state='disabled', bg='black', fg='white', font=('Courier', 9))
+        status_frame = ctk.CTkFrame(self.obfuscator_tab, fg_color="transparent")
+        status_frame.pack(expand=True, fill='both', padx=20, pady=10)
+        ctk.CTkLabel(status_frame, text="Status:").pack(anchor='w')
+        self.obfuscation_status_text = ctk.CTkTextbox(status_frame, state='disabled', fg_color="black")
         self.obfuscation_status_text.pack(expand=True, fill='both')
 
     def _update_status(self, message):
-        self.obfuscation_status_text.config(state='normal')
+        self.obfuscation_status_text.configure(state='normal')
         self.obfuscation_status_text.insert(tk.END, message)
         self.obfuscation_status_text.see(tk.END)
-        self.obfuscation_status_text.config(state='disabled')
+        self.obfuscation_status_text.configure(state='disabled')
 
     def select_source(self):
         path = filedialog.askdirectory(title="Select Source Folder")
         if path:
             self.source_path.set(path)
             self._update_status(f"Source folder set to: {path}\n")
+            self.source_entry.configure(state="normal")
+            self.source_entry.delete(0, tk.END)
+            self.source_entry.insert(0, path)
+            self.source_entry.configure(state="readonly")
             self.check_paths()
 
     def select_destination(self):
@@ -133,6 +145,10 @@ class ObfuscatorApp(tk.Tk):
         if path:
             self.destination_path.set(path)
             self._update_status(f"Destination folder set to: {path}\n")
+            self.dest_entry.configure(state="normal")
+            self.dest_entry.delete(0, tk.END)
+            self.dest_entry.insert(0, path)
+            self.dest_entry.configure(state="readonly")
             self.check_paths()
 
     def select_license(self):
@@ -143,12 +159,16 @@ class ObfuscatorApp(tk.Tk):
         if path:
             self.license_path.set(path)
             self._update_status(f"License file set to: {path}\n")
+            self.license_entry.configure(state="normal")
+            self.license_entry.delete(0, tk.END)
+            self.license_entry.insert(0, path)
+            self.license_entry.configure(state="readonly")
 
     def check_paths(self):
         if self.source_path.get() and self.destination_path.get():
-            self.start_button.config(state='normal')
+            self.start_button.configure(state='normal')
         else:
-            self.start_button.config(state='disabled')
+            self.start_button.configure(state='disabled')
 
     def start_obfuscation(self):
         source = self.source_path.get()
@@ -159,23 +179,18 @@ class ObfuscatorApp(tk.Tk):
             messagebox.showerror("Error", "Please select both a source and destination folder.")
             return
 
-        # Disable buttons
-        self.start_button.config(state='disabled')
-        self.browse_source_button.config(state='disabled')
-        self.browse_dest_button.config(state='disabled')
-        self.browse_license_button.config(state='disabled')
+        self.start_button.configure(state='disabled')
+        self.browse_source_button.configure(state='disabled')
+        self.browse_dest_button.configure(state='disabled')
+        self.browse_license_button.configure(state='disabled')
 
-        # Clear status area
-        self.obfuscation_status_text.config(state='normal')
+        self.obfuscation_status_text.configure(state='normal')
         self.obfuscation_status_text.delete('1.0', tk.END)
-        self.obfuscation_status_text.config(state='disabled')
+        self.obfuscation_status_text.configure(state='disabled')
 
-        # Start background thread
         thread = threading.Thread(target=obfuscation_process, args=(source, dest, license_f, self.obfuscation_queue))
         thread.daemon = True
         thread.start()
-
-        # Start processing queue
         self.process_obfuscation_queue()
 
     def process_obfuscation_queue(self):
@@ -183,11 +198,10 @@ class ObfuscatorApp(tk.Tk):
             while True:
                 message = self.obfuscation_queue.get_nowait()
                 if isinstance(message, tuple) and message[0] == "PROCESS_COMPLETE":
-                    # Re-enable buttons
-                    self.start_button.config(state='normal')
-                    self.browse_source_button.config(state='normal')
-                    self.browse_dest_button.config(state='normal')
-                    self.browse_license_button.config(state='normal')
+                    self.start_button.configure(state='normal')
+                    self.browse_source_button.configure(state='normal')
+                    self.browse_dest_button.configure(state='normal')
+                    self.browse_license_button.configure(state='normal')
                     self._update_status("\n--- Ready for next operation. ---\n")
                     break
                 else:
@@ -195,8 +209,9 @@ class ObfuscatorApp(tk.Tk):
         except queue.Empty:
             self.after(100, self.process_obfuscation_queue)
 
-    def run(self):
-        self.mainloop()
+    def on_closing(self):
+        self.db.close()
+        self.destroy()
 
     def start_license_generation(self):
         expiry = self.expiry_date.get()
@@ -208,17 +223,16 @@ class ObfuscatorApp(tk.Tk):
 
         output_folder = filedialog.askdirectory(title="Select a folder to save the license key")
         if not output_folder:
-            return # User cancelled
+            return
 
-        self.generate_license_button.config(state='disabled')
-        self.license_status_text.config(state='normal')
+        self.generate_license_button.configure(state='disabled')
+        self.license_status_text.configure(state='normal')
         self.license_status_text.delete('1.0', tk.END)
-        self.license_status_text.config(state='disabled')
+        self.license_status_text.configure(state='disabled')
 
         thread = threading.Thread(target=license_generation_process, args=(expiry, device_id, output_folder, self.license_queue))
         thread.daemon = True
         thread.start()
-
         self.process_license_queue()
 
     def process_license_queue(self):
@@ -226,8 +240,9 @@ class ObfuscatorApp(tk.Tk):
             while True:
                 message = self.license_queue.get_nowait()
                 if isinstance(message, tuple) and message[0] == "LICENSE_PROCESS_COMPLETE":
-                    self.generate_license_button.config(state='normal')
+                    self.generate_license_button.configure(state='normal')
                     self._update_license_status("\n--- Ready for next operation. ---\n")
+                    self._refresh_license_history() # Refresh history after generation
                     break
                 else:
                     self._update_license_status(message)
@@ -235,281 +250,246 @@ class ObfuscatorApp(tk.Tk):
             self.after(100, self.process_license_queue)
 
     def _update_license_status(self, message):
-        self.license_status_text.config(state='normal')
+        self.license_status_text.configure(state='normal')
         self.license_status_text.insert(tk.END, message)
         self.license_status_text.see(tk.END)
-        self.license_status_text.config(state='disabled')
+        self.license_status_text.configure(state='disabled')
 
+    def create_license_history_tab(self):
+        self.license_history_tab.grid_columnconfigure(0, weight=1)
+        self.license_history_tab.grid_rowconfigure(1, weight=1)
+
+        controls_frame = ctk.CTkFrame(self.license_history_tab)
+        controls_frame.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+
+        self.user_filter_var = ctk.StringVar(value="All Users")
+        self.user_filter_menu = ctk.CTkOptionMenu(controls_frame, variable=self.user_filter_var, values=["All Users"], command=self._on_user_filter_selected)
+        self.user_filter_menu.pack(side="left", padx=5, pady=5)
+
+        ctk.CTkButton(controls_frame, text="Refresh History", command=self._refresh_license_history).pack(side="left", padx=5, pady=5)
+        ctk.CTkButton(controls_frame, text="Delete Selected", command=self._delete_selected_license, fg_color="red").pack(side="right", padx=5, pady=5)
+
+        self.history_status_label = ctk.CTkLabel(self.license_history_tab, text="", anchor="w")
+        self.history_status_label.grid(row=2, column=0, padx=10, pady=5, sticky="ew")
+
+        self.history_list_frame = ctk.CTkScrollableFrame(self.license_history_tab, label_text="Generated License History")
+        self.history_list_frame.grid(row=1, column=0, padx=10, pady=10, sticky="nsew")
+        self.history_list_frame.grid_columnconfigure(0, weight=1)
+        self._refresh_license_history()
+
+    def _refresh_user_dropdown(self):
+        self.user_data_map.clear()
+        users = self.db.get_all_users()
+        user_names = ["All Users"]
+        if users:
+            for user_id, name, hwid in users:
+                self.user_data_map[name] = (user_id, hwid)
+                user_names.append(name)
+        self.user_filter_menu.configure(values=user_names)
+
+    def _on_user_filter_selected(self, selected_name):
+        self._refresh_license_history()
+
+    def _refresh_license_history(self):
+        for widget in self.history_list_frame.winfo_children():
+            widget.destroy()
+
+        selected_user_name = self.user_filter_var.get()
+        history_data = []
+        if selected_user_name == "All Users":
+            history_data = self.db.get_license_history()
+        elif selected_user_name in self.user_data_map:
+            user_id, _ = self.user_data_map[selected_user_name]
+            history_data = self.db.get_license_history_by_user(user_id)
+
+        header = ctk.CTkFrame(self.history_list_frame, fg_color=("gray85", "gray20"))
+        header.pack(fill="x", pady=(0, 5), padx=5)
+        header.grid_columnconfigure(0, weight=0) # Radio button
+        header.grid_columnconfigure(1, weight=2) # User
+        header.grid_columnconfigure(2, weight=1) # Expiry
+        header.grid_columnconfigure(3, weight=1) # Generated
+
+        ctk.CTkLabel(header, text="", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=5, pady=2)
+        ctk.CTkLabel(header, text="Username", font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, padx=5, pady=2, sticky="w")
+        ctk.CTkLabel(header, text="Expiry Date", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=5, pady=2, sticky="w")
+        ctk.CTkLabel(header, text="Generation Date", font=ctk.CTkFont(weight="bold")).grid(row=0, column=3, padx=5, pady=2, sticky="w")
+
+        if not history_data:
+            ctk.CTkLabel(self.history_list_frame, text="No licenses found in history.").pack(pady=10)
+            return
+
+        for i, (license_id, user_name, expiry_date, generation_date) in enumerate(history_data):
+            row_color = ("#f0f0f0", "#303030") if i % 2 == 0 else ("#e0e0e0", "#252525")
+            row_frame = ctk.CTkFrame(self.history_list_frame, fg_color=row_color)
+            row_frame.pack(fill="x", pady=1, padx=5)
+            row_frame.grid_columnconfigure(1, weight=2)
+            row_frame.grid_columnconfigure(2, weight=1)
+            row_frame.grid_columnconfigure(3, weight=1)
+
+            radio = ctk.CTkRadioButton(row_frame, text="", variable=self.selected_license_id, value=str(license_id))
+            radio.grid(row=0, column=0, padx=5, pady=2)
+            ctk.CTkLabel(row_frame, text=user_name, anchor="w").grid(row=0, column=1, padx=5, pady=2, sticky="w")
+            ctk.CTkLabel(row_frame, text=expiry_date, anchor="w").grid(row=0, column=2, padx=5, pady=2, sticky="w")
+            ctk.CTkLabel(row_frame, text=generation_date, anchor="w").grid(row=0, column=3, padx=5, pady=2, sticky="w")
+
+    def _delete_selected_license(self):
+        license_id_to_delete = self.selected_license_id.get()
+        if not license_id_to_delete:
+            self.history_status_label.configure(text="Error: No license selected to delete.", text_color="red")
+            return
+
+        # Confirmation Dialog
+        dialog = ctk.CTkInputDialog(text="Are you sure you want to delete this license record?\nType 'DELETE' to confirm.", title="Confirm Deletion")
+        confirmation = dialog.get_input()
+
+        if confirmation == "DELETE":
+            success, msg = self.db.delete_license_record(license_id_to_delete)
+            if success:
+                self.history_status_label.configure(text=msg, text_color="green")
+                self.selected_license_id.set("") # Clear selection
+                self._refresh_license_history()
+            else:
+                self.history_status_label.configure(text=msg, text_color="red")
+        else:
+            self.history_status_label.configure(text="Deletion cancelled.", text_color="orange")
 
 def license_generation_process(expiry_date, device_id, output_folder, queue_obj):
     try:
         queue_obj.put("--- Starting License Generation ---\n")
-
-        # Validate and format date
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", expiry_date):
-                raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
-
+            raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
         queue_obj.put(f"Expiry: {expiry_date}, Device ID: {device_id}\n")
 
-        # --- Attempt 1: Standard command ---
         cmd1_list = ["pyarmor", "gen", "key", "-O", output_folder, "-e", expiry_date, "-b", device_id]
         queue_obj.put(f"Executing: {' '.join(shlex.quote(arg) for arg in cmd1_list)}\n")
         proc1 = subprocess.run(cmd1_list, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=False)
 
         success = False
         p = pathlib.Path(output_folder)
-        license_files = list(p.glob("*.lic")) + list(p.glob("*.rkey"))
-        if license_files:
+        if list(p.glob("*.lic")) or list(p.glob("*.rkey")):
             success = True
-            queue_obj.put(f"Found license file: {license_files[0]}\n")
 
         if not success:
-            queue_obj.put(f"Command output (stdout):\n{proc1.stdout}\n")
-            queue_obj.put(f"Command output (stderr):\n{proc1.stderr}\n")
+            queue_obj.put(f"STDOUT:\n{proc1.stdout}\nSTDERR:\n{proc1.stderr}\n")
             queue_obj.put("First attempt failed. Retrying with 'disk:' prefix...\n")
             time.sleep(1)
-
-            # --- Attempt 2 (Fallback): "disk:" prefix ---
             cmd2_list = ["pyarmor", "gen", "key", "-O", output_folder, "-e", expiry_date, "-b", f"disk:{device_id}"]
             queue_obj.put(f"Executing: {' '.join(shlex.quote(arg) for arg in cmd2_list)}\n")
             proc2 = subprocess.run(cmd2_list, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=False)
-
-            license_files = list(p.glob("*.lic")) + list(p.glob("*.rkey"))
-            if license_files:
+            if list(p.glob("*.lic")) or list(p.glob("*.rkey")):
                 success = True
-                queue_obj.put(f"Found license file: {license_files[0]}\n")
             final_proc = proc2
         else:
             final_proc = proc1
 
-        queue_obj.put(f"Final command output (stdout):\n{final_proc.stdout}\n")
-        queue_obj.put(f"Final command output (stderr):\n{final_proc.stderr}\n")
+        queue_obj.put(f"Final STDOUT:\n{final_proc.stdout}\n")
+        queue_obj.put(f"Final STDERR:\n{final_proc.stderr}\n")
 
         if success:
-            queue_obj.put("\n--- SUCCESS! ---\n")
-            queue_obj.put(f"License key successfully created in: {output_folder}\n")
+            queue_obj.put("\n--- SUCCESS! ---\nLicense key created in: {output_folder}\n")
         else:
-            if final_proc.returncode != 0:
-                error_details = final_proc.stderr if final_proc.stderr else final_proc.stdout
-                raise RuntimeError(f"License generation command failed with exit code {final_proc.returncode}. Details: {error_details.strip()}")
-            else:
-                 raise RuntimeError(f"License generation command finished, but no .lic or .rkey file found in {output_folder}.")
+            error_details = final_proc.stderr if final_proc.stderr else final_proc.stdout
+            raise RuntimeError(f"License generation failed. Details: {error_details.strip()}")
 
     except Exception as e:
-        queue_obj.put(f"\n--- AN ERROR OCCURRED ---\n")
-        queue_obj.put(traceback.format_exc() + "\n")
-        queue_obj.put(f"{str(e)}\n")
+        queue_obj.put(f"\n--- AN ERROR OCCURRED ---\n{traceback.format_exc()}\n{str(e)}\n")
     finally:
         queue_obj.put(("LICENSE_PROCESS_COMPLETE",))
 
 
-# --- Funzione Semplificata per Sistema con Python Installato (con DLL copiate in obfuscated) ---
 def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):
-    """
-    Funzione semplificata che offusca gli script, crea launcher .bat,
-    e copia le DLL VCRuntime e Python Core in obfuscated, assumendo Python installato.
-    """
-    pyarmor_runtime_folder_name = None
-    py_version_major_minor = ".".join(map(str, sys.version_info[:2])) # e.g., "3.10"
-    python_dll_name = f'python{py_version_major_minor.replace(".", "")}.dll' # e.g., python310.dll
+    py_version_major_minor = ".".join(map(str, sys.version_info[:2]))
+    python_dll_name = f'python{py_version_major_minor.replace(".", "")}.dll'
     try:
         obfuscated_dir = os.path.join(dest_dir, "obfuscated")
+        queue_obj.put(f"--- Starting Obfuscation (System Python Mode + DLL Copy {py_version_major_minor}) ---\n")
 
-        queue_obj.put(f"--- Starting Obfuscation Process (System Python Mode + DLL Copy {py_version_major_minor}) ---\n")
-
-        # 1. Clean up and create directories
         if os.path.exists(dest_dir):
-            queue_obj.put(f"Removing existing destination directory: {dest_dir}\n")
-            if not dest_dir or len(dest_dir) < 5 or ":" not in dest_dir:
-                 raise ValueError(f"Destination directory '{dest_dir}' seems unsafe to remove automatically.")
+            queue_obj.put(f"Removing existing directory: {dest_dir}\n")
             shutil.rmtree(dest_dir)
-        queue_obj.put(f"Creating destination directory: {dest_dir}\n")
         os.makedirs(obfuscated_dir)
 
-        # 2. Find all Python scripts
-        queue_obj.put(f"Searching for Python scripts in: {source_dir}\n")
         all_scripts = glob.glob(os.path.join(source_dir, '*.py'))
         if not all_scripts:
-            raise FileNotFoundError("No Python files found in the source directory.")
-        script_basenames = [os.path.basename(s) for s in all_scripts]
-        queue_obj.put(f"Found {len(script_basenames)} scripts: {', '.join(script_basenames)}\n")
+            raise FileNotFoundError("No Python files found in source.")
+        queue_obj.put(f"Found {len(all_scripts)} scripts.\n")
 
-        # 3. Run PyArmor obfuscation
         queue_obj.put("\n--- Running PyArmor ---\n")
-        command = [
-            "pyarmor", "gen",
-            "--outer",
-            "--output", obfuscated_dir,
-        ] + all_scripts
-        process = subprocess.Popen(
-            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-            text=True, encoding='utf-8', errors='ignore'
-        )
-        pyarmor_output_lines = []
+        command = ["pyarmor", "gen", "--outer", "--output", obfuscated_dir] + all_scripts
+        process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, encoding='utf-8', errors='ignore')
         for line in iter(process.stdout.readline, ''):
             queue_obj.put(line)
-            pyarmor_output_lines.append(line)
-            if "INFO     Copy PyArmor runtime files to" in line or "INFO     generate runtime files to" in line:
-                 try:
-                     path_part = line.split(" to ")[-1].strip()
-                     folder_name = os.path.basename(path_part)
-                     if folder_name.startswith("pyarmor_runtime_"):
-                         pyarmor_runtime_folder_name = folder_name
-                         queue_obj.put(f"Detected PyArmor runtime folder: {pyarmor_runtime_folder_name}\n")
-                 except Exception as parse_err:
-                     queue_obj.put(f"WARNING: Could not parse runtime folder name from line: '{line.strip()}'. Error: {parse_err}\n")
-        process.stdout.close()
         return_code = process.wait()
-
-        if not pyarmor_runtime_folder_name:
-            runtime_folders = glob.glob(os.path.join(obfuscated_dir, "pyarmor_runtime_*"))
-            if runtime_folders:
-                 pyarmor_runtime_folder_name = os.path.basename(runtime_folders[0])
-                 queue_obj.put(f"Manually found PyArmor runtime folder: {pyarmor_runtime_folder_name}\n")
-            else:
-                 default_runtime = os.path.join(obfuscated_dir, "pyarmor_runtime_000000")
-                 if os.path.isdir(default_runtime):
-                     pyarmor_runtime_folder_name = os.path.basename(default_runtime)
-                     queue_obj.put(f"Assuming default PyArmor runtime folder: {pyarmor_runtime_folder_name}\n")
-                 else:
-                     queue_obj.put("ERROR: Could not determine PyArmor runtime folder name!\n")
-                     raise RuntimeError("PyArmor runtime folder not found after obfuscation.")
         if return_code != 0:
-            queue_obj.put(f"PyArmor process exited with code {return_code}. Check output above for errors.\n")
-            raise subprocess.CalledProcessError(return_code, command, output="See status area for PyArmor output")
-        queue_obj.put("--- PyArmor Finished Successfully ---\n\n")
+            raise subprocess.CalledProcessError(return_code, command)
+        queue_obj.put("--- PyArmor Finished ---\n\n")
 
-        # 3.5 Copia DLL VCRuntime e Python Core in obfuscated_dir
-        queue_obj.put(f"--- Copying Dependency DLLs ({python_dll_name}, vcruntime*) to obfuscated folder --- \n")
-        host_python_dir = sys.prefix # Directory dell'interprete Python che esegue questo script
-        dll_source_dirs = [host_python_dir]
-        system32_path = os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "System32")
-        if system32_path not in dll_source_dirs:
-            dll_source_dirs.append(system32_path)
-
-        dlls_to_copy = [python_dll_name] + glob.glob(os.path.join(host_python_dir, "vcruntime140*.dll"))
-
-        found_python_dll = False
-        python_dll_src_path = None
-        vc_runtime_dll_paths = []
-
-        # Cerca le DLL nelle possibili directory sorgente
-        for source_dir_path in dll_source_dirs:
-            # Cerca pythonXX.dll
-            potential_py_dll = os.path.join(source_dir_path, python_dll_name)
-            if not found_python_dll and os.path.exists(potential_py_dll):
-                python_dll_src_path = potential_py_dll
-                found_python_dll = True
-                queue_obj.put(f"Found {python_dll_name} in: {source_dir_path}\n")
-
-            # Cerca vcruntime*.dll
-            vc_dlls_in_dir = glob.glob(os.path.join(source_dir_path, "vcruntime140*.dll"))
-            for vc_dll in vc_dlls_in_dir:
-                if vc_dll not in vc_runtime_dll_paths:
-                    vc_runtime_dll_paths.append(vc_dll)
-                    queue_obj.put(f"Found {os.path.basename(vc_dll)} in: {source_dir_path}\n")
-
-        # Copia le DLL trovate
+        queue_obj.put(f"--- Copying Dependency DLLs ---\n")
+        host_python_dir = sys.prefix
+        dll_source_dirs = [host_python_dir, os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "System32")]
         dlls_to_copy_paths = []
-        if python_dll_src_path:
-            dlls_to_copy_paths.append(python_dll_src_path)
+
+        py_dll_path = os.path.join(host_python_dir, python_dll_name)
+        if os.path.exists(py_dll_path):
+            dlls_to_copy_paths.append(py_dll_path)
         else:
-             queue_obj.put(f"WARNING: Could not find {python_dll_name} in {dll_source_dirs}. The obfuscated app might fail.\n")
+            queue_obj.put(f"WARNING: {python_dll_name} not found in {host_python_dir}.\n")
 
-        dlls_to_copy_paths.extend(vc_runtime_dll_paths)
+        for source in dll_source_dirs:
+            for dll in glob.glob(os.path.join(source, "vcruntime140*.dll")):
+                if dll not in dlls_to_copy_paths:
+                    dlls_to_copy_paths.append(dll)
 
-        if not dlls_to_copy_paths:
-             queue_obj.put(f"WARNING: Could not find any required DLLs ({python_dll_name}, vcruntime*) to copy into obfuscated folder.\n")
-        else:
-            for dll_path in dlls_to_copy_paths:
-                dll_name = os.path.basename(dll_path)
-                dest_dll_path = os.path.join(obfuscated_dir, dll_name)
-                queue_obj.put(f"Copying {dll_name} to {obfuscated_dir}\n")
-                try:
-                    if not os.path.exists(dest_dll_path):
-                         shutil.copy(dll_path, obfuscated_dir)
-                    else:
-                         queue_obj.put(f"Skipping copy, {dll_name} already exists in {obfuscated_dir}.\n")
-                except Exception as copy_err:
-                     queue_obj.put(f"ERROR copying {dll_name} to {obfuscated_dir}: {copy_err}\n")
+        for dll_path in dlls_to_copy_paths:
+            queue_obj.put(f"Copying {os.path.basename(dll_path)} to {obfuscated_dir}\n")
+            shutil.copy(dll_path, obfuscated_dir)
 
-        queue_obj.put("--- Finished copying Dependency DLLs to obfuscated folder --- \n")
-
-
-        # 4. Create .bat launchers (Simplified for System Python)
         queue_obj.put("--- Creating .bat Launchers ---\n")
         for script_path in all_scripts:
-            script_name = os.path.basename(script_path)
-            base_name = os.path.splitext(script_name)[0]
-            bat_name = base_name + ".bat"
-            bat_path = os.path.join(dest_dir, bat_name)
-
-            # Simplified launcher content
+            base_name = os.path.splitext(os.path.basename(script_path))[0]
+            bat_path = os.path.join(dest_dir, f"{base_name}.bat")
             launcher_content = f'''@echo off
-setlocal
-REM Cambia la directory corrente alla cartella 'obfuscated' relativa a questo .bat
 cd /d "%~dp0obfuscated"
-
-REM Esegui lo script usando il python del sistema (deve essere nel PATH)
-echo Running: python "{base_name}.py" %* from %CD%
+echo Running: python "{base_name}.py" %*
 python "{base_name}.py" %*
-
-endlocal
 pause
 '''
-            queue_obj.put(f"Creating launcher for {script_name}...\n")
             with open(bat_path, 'w', encoding='utf-8') as f:
                 f.write(launcher_content)
-        queue_obj.put("--- Launchers Created Successfully ---\n\n")
 
-        # 5. Copy non-Python assets (CORRECTED)
-        queue_obj.put("--- Copying Assets ---\n")
-        ignore_func = shutil.ignore_patterns('*.py', '__pycache__')
-        patterns_to_ignore = ('*.py', '__pycache__') # Keep patterns for file check
+        queue_obj.put("\n--- Copying Assets ---\n")
+        for item in os.listdir(source_dir):
+            s = os.path.join(source_dir, item)
+            d = os.path.join(dest_dir, item)
+            if not item.endswith('.py') and not item == '__pycache__':
+                if os.path.isdir(s):
+                    shutil.copytree(s, d, dirs_exist_ok=True)
+                else:
+                    shutil.copy2(s, d)
 
-        if os.path.exists(source_dir):
-            for item in os.listdir(source_dir):
-                 s = os.path.join(source_dir, item)
-                 d = os.path.join(dest_dir, item) # Assets go to the main dest_dir
-                 if os.path.isdir(s):
-                     should_ignore_dir = any(fnmatch.fnmatch(item, pat) for pat in patterns_to_ignore)
-                     if not should_ignore_dir:
-                         queue_obj.put(f"Copying directory: {item}\n")
-                         shutil.copytree(s, d, ignore=ignore_func, dirs_exist_ok=True)
-                 else: # It's a file
-                     should_ignore_file = any(fnmatch.fnmatch(item, pat) for pat in patterns_to_ignore)
-                     if not should_ignore_file:
-                         queue_obj.put(f"Copying file: {item}\n")
-                         shutil.copy2(s, d) # copy2 preserves metadata
-        else:
-             queue_obj.put(f"WARNING: Source directory {source_dir} not found for copying assets.\n")
-
-
-        # 6. Copy license file if provided (Keep this)
         if license_path:
-            if os.path.exists(license_path):
-                queue_obj.put(f"Copying license file...\n")
-                shutil.copy(license_path, dest_dir)
-                shutil.copy(license_path, obfuscated_dir)
-            else:
-                queue_obj.put(f"Warning: License file not found at '{license_path}'\n")
-        queue_obj.put("--- Asset Copying Finished ---\n\n")
+            queue_obj.put("Copying license file...\n")
+            shutil.copy(license_path, dest_dir)
+            shutil.copy(license_path, obfuscated_dir)
 
-        # 7. REMOVED - No portable Python setup needed
-
-        queue_obj.put(f"====== OBFUSCATION COMPLETE (System Python Mode + DLL Copy {py_version_major_minor}) ======\n")
-        queue_obj.put(f"Final application is ready in: {dest_dir}\n")
-        queue_obj.put(f"NOTE: Ensure Python {py_version_major_minor} is installed and in the system PATH on the target machine.\n")
+        queue_obj.put(f"\n====== OBFUSCATION COMPLETE ======\n")
+        queue_obj.put(f"App is ready in: {dest_dir}\n")
 
     except Exception as e:
-        queue_obj.put(f"\n--- AN ERROR OCCURRED during obfuscation process ---\n")
-        queue_obj.put(traceback.format_exc() + "\n")
-        queue_obj.put(f"{str(e)}\n")
+        queue_obj.put(f"\n--- AN ERROR OCCURRED ---\n{traceback.format_exc()}\n{str(e)}\n")
     finally:
         queue_obj.put(("PROCESS_COMPLETE",))
 
-
-# --- Main execution ---
 if __name__ == "__main__":
-    app = ObfuscatorApp()
-    app.run()
+    db_conn = None
+    try:
+        db_conn = Database()
+        app = ObfuscatorApp(db_conn)
+        app.protocol("WM_DELETE_WINDOW", app.on_closing)
+        app.mainloop()
+    except Exception as e:
+        print(f"Error during application startup: {e}")
+    finally:
+        if db_conn:
+            db_conn.close()
+            print("Database connection closed.")

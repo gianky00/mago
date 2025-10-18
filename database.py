@@ -98,6 +98,7 @@ class Database:
         """
         self.cursor.execute("""
             SELECT
+                sl.id,
                 u.nome_utente,
                 sl.data_scadenza,
                 sl.data_generazione
@@ -106,6 +107,32 @@ class Database:
             ORDER BY sl.data_generazione DESC
         """)
         return self.cursor.fetchall()
+
+    def get_license_history_by_user(self, user_id):
+        """
+        Restituisce lo storico delle licenze per un utente specifico.
+        """
+        self.cursor.execute("""
+            SELECT
+                sl.id,
+                u.nome_utente,
+                sl.data_scadenza,
+                sl.data_generazione
+            FROM storico_licenze sl
+            JOIN utenti u ON sl.id_utente = u.id
+            WHERE sl.id_utente = ?
+            ORDER BY sl.data_generazione DESC
+        """, (user_id,))
+        return self.cursor.fetchall()
+
+    def delete_license_record(self, license_id):
+        """Elimina un record di licenza dallo storico."""
+        try:
+            self.cursor.execute("DELETE FROM storico_licenze WHERE id = ?", (license_id,))
+            self.conn.commit()
+            return True, "Record di licenza eliminato con successo."
+        except Exception as e:
+            return False, f"Errore sconosciuto: {e}"
 
     def close(self):
         """Chiude la connessione al database."""

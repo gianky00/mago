@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import filedialog, messagebox
+from tkinter import ttk, filedialog, messagebox
 import threading
 import subprocess
 import shutil
@@ -11,17 +11,64 @@ import sys
 class ObfuscatorApp(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("General Obfuscator")
-        self.geometry("600x450")
+        self.title("General Obfuscator and License Manager")
+        self.geometry("700x550")
 
-        # Variabili per i percorsi
+        # Variabili per i percorsi e dati
         self.source_path = tk.StringVar()
         self.destination_path = tk.StringVar()
         self.license_path = tk.StringVar()
-        self.queue = queue.Queue()
 
+        self.obfuscation_queue = queue.Queue()
+        self.license_queue = queue.Queue()
+
+        # Creazione del Notebook per le schede
+        self.notebook = ttk.Notebook(self)
+        self.notebook.pack(expand=True, fill='both', padx=10, pady=10)
+
+        # Creazione dei frame per le schede
+        self.obfuscator_tab = ttk.Frame(self.notebook)
+        self.license_tab = ttk.Frame(self.notebook)
+
+        self.notebook.add(self.obfuscator_tab, text='Obfuscator')
+        self.notebook.add(self.license_tab, text='License Manager')
+
+        self.create_obfuscator_tab()
+        self.create_license_tab()
+
+    def create_license_tab(self):
+        # Variabili per la generazione licenza
+        self.expiry_date = tk.StringVar()
+        self.device_id = tk.StringVar()
+
+        # Frame per i campi di input
+        input_frame = tk.Frame(self.license_tab, pady=5)
+        input_frame.pack(fill='x', padx=10, pady=(10,0))
+
+        tk.Label(input_frame, text="Expiry Date (YYYY-MM-DD):").grid(row=0, column=0, sticky='w', padx=5, pady=5)
+        self.expiry_entry = tk.Entry(input_frame, textvariable=self.expiry_date, width=40)
+        self.expiry_entry.grid(row=0, column=1, sticky='ew', padx=5, pady=5)
+
+        tk.Label(input_frame, text="Device ID:").grid(row=1, column=0, sticky='w', padx=5, pady=5)
+        self.device_id_entry = tk.Entry(input_frame, textvariable=self.device_id, width=40)
+        self.device_id_entry.grid(row=1, column=1, sticky='ew', padx=5, pady=5)
+
+        input_frame.columnconfigure(1, weight=1)
+
+        # Pulsante di generazione
+        self.generate_license_button = tk.Button(self.license_tab, text="Generate License Key", command=self.start_license_generation, font=('Helvetica', 12, 'bold'), pady=10)
+        self.generate_license_button.pack(pady=10)
+
+        # Area di stato per la licenza
+        license_status_frame = tk.Frame(self.license_tab, pady=10)
+        license_status_frame.pack(expand=True, fill='both', padx=10)
+        tk.Label(license_status_frame, text="Status:").pack(anchor='w')
+        self.license_status_text = tk.Text(license_status_frame, height=10, state='disabled', bg='black', fg='white', font=('Courier', 9))
+        self.license_status_text.pack(expand=True, fill='both')
+
+    def create_obfuscator_tab(self):
         # Frame per la selezione del percorso di origine
-        source_frame = tk.Frame(self, pady=5)
+        source_frame = tk.Frame(self.obfuscator_tab, pady=5)
         source_frame.pack(fill='x', padx=10, pady=(10,0))
         tk.Label(source_frame, text="Source Folder:").pack(side='left')
         self.source_entry = tk.Entry(source_frame, textvariable=self.source_path, state='readonly', width=50)
@@ -30,7 +77,7 @@ class ObfuscatorApp(tk.Tk):
         self.browse_source_button.pack(side='left')
 
         # Frame per la selezione del percorso di destinazione
-        dest_frame = tk.Frame(self, pady=5)
+        dest_frame = tk.Frame(self.obfuscator_tab, pady=5)
         dest_frame.pack(fill='x', padx=10)
         tk.Label(dest_frame, text="Destination Folder:").pack(side='left')
         self.dest_entry = tk.Entry(dest_frame, textvariable=self.destination_path, state='readonly', width=50)
@@ -39,7 +86,7 @@ class ObfuscatorApp(tk.Tk):
         self.browse_dest_button.pack(side='left')
 
         # Frame per la selezione del file di licenza
-        license_frame = tk.Frame(self, pady=5)
+        license_frame = tk.Frame(self.obfuscator_tab, pady=5)
         license_frame.pack(fill='x', padx=10)
         tk.Label(license_frame, text="License File (optional):").pack(side='left')
         self.license_entry = tk.Entry(license_frame, textvariable=self.license_path, state='readonly', width=50)
@@ -48,21 +95,21 @@ class ObfuscatorApp(tk.Tk):
         self.browse_license_button.pack(side='left')
 
         # Pulsante di avvio
-        self.start_button = tk.Button(self, text="Start Obfuscation", command=self.start_obfuscation, state='disabled', font=('Helvetica', 12, 'bold'), pady=10)
+        self.start_button = tk.Button(self.obfuscator_tab, text="Start Obfuscation", command=self.start_obfuscation, state='disabled', font=('Helvetica', 12, 'bold'), pady=10)
         self.start_button.pack(pady=10)
 
         # Area di stato
-        status_frame = tk.Frame(self, pady=10)
+        status_frame = tk.Frame(self.obfuscator_tab, pady=10)
         status_frame.pack(expand=True, fill='both', padx=10)
         tk.Label(status_frame, text="Status:").pack(anchor='w')
-        self.status_text = tk.Text(status_frame, height=10, state='disabled', bg='black', fg='white', font=('Courier', 9))
-        self.status_text.pack(expand=True, fill='both')
+        self.obfuscation_status_text = tk.Text(status_frame, height=10, state='disabled', bg='black', fg='white', font=('Courier', 9))
+        self.obfuscation_status_text.pack(expand=True, fill='both')
 
     def _update_status(self, message):
-        self.status_text.config(state='normal')
-        self.status_text.insert(tk.END, message)
-        self.status_text.see(tk.END)
-        self.status_text.config(state='disabled')
+        self.obfuscation_status_text.config(state='normal')
+        self.obfuscation_status_text.insert(tk.END, message)
+        self.obfuscation_status_text.see(tk.END)
+        self.obfuscation_status_text.config(state='disabled')
 
     def select_source(self):
         path = filedialog.askdirectory(title="Select Source Folder")
@@ -109,22 +156,22 @@ class ObfuscatorApp(tk.Tk):
         self.browse_license_button.config(state='disabled')
 
         # Clear status area
-        self.status_text.config(state='normal')
-        self.status_text.delete('1.0', tk.END)
-        self.status_text.config(state='disabled')
+        self.obfuscation_status_text.config(state='normal')
+        self.obfuscation_status_text.delete('1.0', tk.END)
+        self.obfuscation_status_text.config(state='disabled')
 
         # Start background thread
-        thread = threading.Thread(target=obfuscation_process, args=(source, dest, license_f, self.queue))
+        thread = threading.Thread(target=obfuscation_process, args=(source, dest, license_f, self.obfuscation_queue))
         thread.daemon = True
         thread.start()
 
         # Start processing queue
-        self.process_queue()
+        self.process_obfuscation_queue()
 
-    def process_queue(self):
+    def process_obfuscation_queue(self):
         try:
             while True:
-                message = self.queue.get_nowait()
+                message = self.obfuscation_queue.get_nowait()
                 if isinstance(message, tuple) and message[0] == "PROCESS_COMPLETE":
                     # Re-enable buttons
                     self.start_button.config(state='normal')
@@ -136,10 +183,115 @@ class ObfuscatorApp(tk.Tk):
                 else:
                     self._update_status(message)
         except queue.Empty:
-            self.after(100, self.process_queue)
+            self.after(100, self.process_obfuscation_queue)
 
     def run(self):
         self.mainloop()
+
+    def start_license_generation(self):
+        expiry = self.expiry_date.get()
+        device_id = self.device_id.get()
+
+        if not expiry or not device_id:
+            messagebox.showerror("Error", "Please provide both an expiry date and a device ID.")
+            return
+
+        output_folder = filedialog.askdirectory(title="Select a folder to save the license key")
+        if not output_folder:
+            return # User cancelled
+
+        self.generate_license_button.config(state='disabled')
+        self.license_status_text.config(state='normal')
+        self.license_status_text.delete('1.0', tk.END)
+        self.license_status_text.config(state='disabled')
+
+        thread = threading.Thread(target=license_generation_process, args=(expiry, device_id, output_folder, self.license_queue))
+        thread.daemon = True
+        thread.start()
+
+        self.process_license_queue()
+
+    def process_license_queue(self):
+        try:
+            while True:
+                message = self.license_queue.get_nowait()
+                if isinstance(message, tuple) and message[0] == "LICENSE_PROCESS_COMPLETE":
+                    self.generate_license_button.config(state='normal')
+                    self._update_license_status("\n--- Ready for next operation. ---\n")
+                    break
+                else:
+                    self._update_license_status(message)
+        except queue.Empty:
+            self.after(100, self.process_license_queue)
+
+    def _update_license_status(self, message):
+        self.license_status_text.config(state='normal')
+        self.license_status_text.insert(tk.END, message)
+        self.license_status_text.see(tk.END)
+        self.license_status_text.config(state='disabled')
+
+
+def license_generation_process(expiry_date, device_id, output_folder, queue_obj):
+    try:
+        import re
+        import datetime
+        import time
+        import pathlib
+        import shlex
+
+        queue_obj.put("--- Starting License Generation ---\n")
+
+        # Validate and format date
+        if not re.match(r"^\d{4}-\d{2}-\d{2}$", expiry_date):
+             raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
+
+        queue_obj.put(f"Expiry: {expiry_date}, Device ID: {device_id}\n")
+
+        # --- Attempt 1: Standard command ---
+        cmd1 = f'pyarmor gen key -O "{output_folder}" -e {expiry_date} -b "{device_id}"'
+        queue_obj.put(f"Executing: {cmd1}\n")
+
+        proc1 = subprocess.run(shlex.split(cmd1), capture_output=True, text=True, encoding='utf-8', errors='ignore')
+
+        success = False
+        p = pathlib.Path(output_folder)
+        for ext in ("*.rkey", "*.lic"):
+            if list(p.glob(ext)):
+                success = True
+                break
+
+        if not success:
+            queue_obj.put("First attempt failed. Retrying with 'disk:' prefix...\n")
+            time.sleep(1)
+
+            # --- Attempt 2 (Fallback): "disk:" prefix ---
+            cmd2 = f'pyarmor gen key -O "{output_folder}" -e {expiry_date} -b "disk:{device_id}"'
+            queue_obj.put(f"Executing: {cmd2}\n")
+
+            proc2 = subprocess.run(shlex.split(cmd2), capture_output=True, text=True, encoding='utf-8', errors='ignore')
+
+            for ext in ("*.rkey", "*.lic"):
+                if list(p.glob(ext)):
+                    success = True
+                    break
+
+            final_proc = proc2
+        else:
+            final_proc = proc1
+
+        if success:
+            queue_obj.put("\n--- SUCCESS! ---\n")
+            queue_obj.put(f"License key successfully created in: {output_folder}\n")
+        else:
+            error_details = final_proc.stderr if final_proc.stderr else final_proc.stdout
+            raise RuntimeError(f"License generation failed. Details: {error_details.strip()}")
+
+    except Exception as e:
+        queue_obj.put(f"\n--- AN ERROR OCCURRED ---\n")
+        queue_obj.put(f"{str(e)}\n")
+    finally:
+        queue_obj.put(("LICENSE_PROCESS_COMPLETE",))
+
 
 def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):
     """

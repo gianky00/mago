@@ -203,7 +203,7 @@ def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):
             launcher_content = f'''@echo off
 setlocal
 cd /d %~dp0
-.\\python.exe .\\{relative_script_path}
+.\\python.exe ".\\{relative_script_path}"
 endlocal
 pause
 '''

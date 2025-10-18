@@ -252,7 +252,7 @@ setlocal
 REM Change directory to the script's location
 cd /d %~dp0
 REM Run the application using the LOCAL python.exe
-.\\python.exe {main_script}
+.\\python.exe "{main_script}"
 endlocal
 pause
 '''

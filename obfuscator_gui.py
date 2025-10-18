@@ -241,7 +241,7 @@ class ObfuscatorGUI(tk.Tk):
                 # 7. Copy license file
                 if license_src_path:
                     self.queue.put(f"Copying license file to {dest_dir}...\n")
-                    shutil.copy(license_src_path, os.path.join(dest_dir, 'license.lic'))
+                    shutil.copy(license_src_path, dest_dir)
                     self.queue.put("License file copied.\n")
 
                 # 8. Create avvio.bat launcher

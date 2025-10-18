@@ -355,10 +355,11 @@ def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):
 
             launcher_content = f'''@echo off
 setlocal
-cd /d %~dp0
-set PATH=%~dp0;%PATH%
-set PYTHONPATH=%~dp0obfuscated
-.\\python.exe ".\\{relative_script_path}"
+REM Navigate into the obfuscated directory first. This is crucial for DLL loading.
+cd /d "%~dp0obfuscated"
+
+REM Execute the script from within its own directory, using the python.exe from the parent folder.
+..\\python.exe "{script_name}"
 endlocal
 pause
 '''

@@ -79,7 +79,10 @@ class ObfuscatorApp(tk.Tk):
             self.check_paths()
 
     def select_license(self):
-        path = filedialog.askopenfilename(title="Select License File", filetypes=[("License files", "*.lic"), ("All files", "*.*")])
+        path = filedialog.askopenfilename(
+            title="Select License File",
+            filetypes=[("License Files", "*.lic *.rkey"), ("All files", "*.*")]
+        )
         if path:
             self.license_path.set(path)
             self._update_status(f"License file set to: {path}\n")

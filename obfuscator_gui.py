@@ -80,8 +80,8 @@ class ObfuscatorGUI(tk.Tk):
 
     def select_license_file(self):
         path = filedialog.askopenfilename(
-            title="Select license.lic file",
-            filetypes=[("License files", "*.lic"), ("All files", "*.*")]
+            title="Select License File",
+            filetypes=[("License Files", "*.lic *.rkey"), ("All files", "*.*")]
         )
         if path:
             self.license_path.set(path)

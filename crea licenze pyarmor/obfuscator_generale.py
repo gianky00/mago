@@ -365,10 +365,14 @@ class ObfuscatorApp(ctk.CTk):
 
     def _set_two_months_expiry(self):
         from datetime import datetime, timedelta
-        from dateutil.relativedelta import relativedelta
+        # You might need to install this: pip install python-dateutil
+        try:
+            from dateutil.relativedelta import relativedelta
+            future_date = datetime.now() + relativedelta(months=2)
+            self.expiry_date.set(future_date.strftime("%Y-%m-%d"))
+        except ImportError:
+            messagebox.showerror("Error", "Package 'python-dateutil' not found. Cannot set expiry.\nPlease install it: pip install python-dateutil")
 
-        future_date = datetime.now() + relativedelta(months=2)
-        self.expiry_date.set(future_date.strftime("%Y-%m-%d"))
 
     def create_user_management_tab(self):
         self.selected_user_for_edit = tk.StringVar()
@@ -639,6 +643,7 @@ def obfuscation_process(source_dir, dest_dir, license_path, requirements_path, q
         with open(pth_file_path, 'w', encoding='utf-8') as f:
             f.write("python310.zip\n")
             f.write(".\n")
+            f.write("Lib\\site-packages\n") # <<<--- MODIFICA CHIAVE
             f.write("..\\obfuscated\n") # Permette a Python di trovare gli script offuscati
 
         # 4. Install Dependencies if requirements.txt is provided
@@ -649,12 +654,48 @@ def obfuscation_process(source_dir, dest_dir, license_path, requirements_path, q
             urllib.request.urlretrieve(PIP_DOWNLOAD_URL, get_pip_path)
 
             queue_obj.put("Installing pip...\n")
-            subprocess.run([python_exe, get_pip_path], check=True, capture_output=True, text=True)
+            # --- BLOCCO MODIFICATO per mostrare l'errore di get-pip.py ---
+            pip_install_result = subprocess.run(
+                [python_exe, get_pip_path], 
+                capture_output=True, 
+                text=True, 
+                encoding='utf-8', 
+                errors='ignore'
+            )
+            
+            if pip_install_result.returncode != 0:
+                queue_obj.put(f"--- ERRORE INSTALLAZIONE PIP (get-pip.py) (Codice: {pip_install_result.returncode}) ---\n")
+                queue_obj.put(f"STDOUT:\n{pip_install_result.stdout}\n")
+                queue_obj.put(f"STDERR:\n{pip_install_result.stderr}\n")
+                raise RuntimeError("get-pip.py failed. Controlla il log per i dettagli.")
+            else:
+                queue_obj.put(f"STDOUT (get-pip.py):\n{pip_install_result.stdout}\n")
+                queue_obj.put("Pip installato con successo.\n")
+            # --- FINE BLOCCO MODIFICATO ---
+
 
             pip_exe = os.path.join(python_embed_dir, "Scripts", "pip.exe")
             queue_obj.put(f"Installing packages from: {requirements_path}\n")
-            subprocess.run([pip_exe, "install", "-r", requirements_path], check=True, capture_output=True, text=True)
-            queue_obj.put("--- Dependencies Installed ---\n")
+
+            # Esegui pip e cattura l'output
+            result = subprocess.run(
+                [pip_exe, "install", "-r", requirements_path], 
+                capture_output=True, 
+                text=True, 
+                encoding='utf-8', 
+                errors='ignore'
+            )
+
+            # Controlla se pip ha fallito (returncode != 0)
+            if result.returncode != 0:
+                queue_obj.put(f"--- ERRORE INSTALLAZIONE PIP (Codice: {result.returncode}) ---\n")
+                queue_obj.put(f"STDOUT:\n{result.stdout}\n")
+                queue_obj.put(f"STDERR:\n{result.stderr}\n") # Questo è l'errore che devi leggere
+                raise RuntimeError("pip install failed. Controlla il log per i dettagli.")
+            else:
+                queue_obj.put(f"STDOUT (Pip):\n{result.stdout}\n") # Mostra l'output anche se ha successo
+                queue_obj.put("--- Dependencies Installed ---\n")
+
 
         # 5. Obfuscate with PyArmor
         all_scripts = glob.glob(os.path.join(source_dir, '*.py'))
@@ -712,12 +753,16 @@ pause
 if __name__ == "__main__":
     db_conn = None
     try:
-        db_conn = Database()
+        # Assicurati che 'database.py' sia nella stessa cartella
+        db_conn = Database() 
         app = ObfuscatorApp(db_conn)
         app.protocol("WM_DELETE_WINDOW", app.on_closing)
         app.mainloop()
+    except NameError:
+         print("ERRORE: Impossibile trovare la classe 'Database'. Assicurati che il file 'database.py' esista.")
     except Exception as e:
         print(f"Error during application startup: {e}")
+        traceback.print_exc()
     finally:
         if db_conn:
             db_conn.close()

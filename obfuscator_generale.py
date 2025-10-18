@@ -228,7 +228,7 @@ pause
         if license_path:
             if os.path.exists(license_path):
                 queue_obj.put(f"Copying license file...\n")
-                shutil.copy(license_path, os.path.join(dest_dir, 'license.lic'))
+                shutil.copy(license_path, dest_dir)
             else:
                 queue_obj.put(f"Warning: License file not found at '{license_path}'\n")
         queue_obj.put("--- Asset Copying Finished ---\n\n")

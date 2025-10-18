@@ -7,6 +7,16 @@ import os
 import glob
 import queue
 import sys
+import tempfile
+import re
+import datetime
+import time
+import pathlib
+import shlex
+import urllib.request # Mantenuto per la generazione licenza, se necessario
+# import zipfile # Non più necessario senza Python embeddable
+import traceback # Importato per logging errori
+import fnmatch # Importato per la copia degli asset
 
 class ObfuscatorApp(tk.Tk):
     def __init__(self):
@@ -233,79 +243,85 @@ class ObfuscatorApp(tk.Tk):
 
 def license_generation_process(expiry_date, device_id, output_folder, queue_obj):
     try:
-        import re
-        import datetime
-        import time
-        import pathlib
-        import shlex
-
         queue_obj.put("--- Starting License Generation ---\n")
 
         # Validate and format date
         if not re.match(r"^\d{4}-\d{2}-\d{2}$", expiry_date):
-             raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
+                raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
 
         queue_obj.put(f"Expiry: {expiry_date}, Device ID: {device_id}\n")
 
         # --- Attempt 1: Standard command ---
-        cmd1 = f'pyarmor gen key -O "{output_folder}" -e {expiry_date} -b "{device_id}"'
-        queue_obj.put(f"Executing: {cmd1}\n")
-
-        proc1 = subprocess.run(shlex.split(cmd1), capture_output=True, text=True, encoding='utf-8', errors='ignore')
+        cmd1_list = ["pyarmor", "gen", "key", "-O", output_folder, "-e", expiry_date, "-b", device_id]
+        queue_obj.put(f"Executing: {' '.join(shlex.quote(arg) for arg in cmd1_list)}\n")
+        proc1 = subprocess.run(cmd1_list, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=False)
 
         success = False
         p = pathlib.Path(output_folder)
-        for ext in ("*.rkey", "*.lic"):
-            if list(p.glob(ext)):
-                success = True
-                break
+        license_files = list(p.glob("*.lic")) + list(p.glob("*.rkey"))
+        if license_files:
+            success = True
+            queue_obj.put(f"Found license file: {license_files[0]}\n")
 
         if not success:
+            queue_obj.put(f"Command output (stdout):\n{proc1.stdout}\n")
+            queue_obj.put(f"Command output (stderr):\n{proc1.stderr}\n")
             queue_obj.put("First attempt failed. Retrying with 'disk:' prefix...\n")
             time.sleep(1)
 
             # --- Attempt 2 (Fallback): "disk:" prefix ---
-            cmd2 = f'pyarmor gen key -O "{output_folder}" -e {expiry_date} -b "disk:{device_id}"'
-            queue_obj.put(f"Executing: {cmd2}\n")
+            cmd2_list = ["pyarmor", "gen", "key", "-O", output_folder, "-e", expiry_date, "-b", f"disk:{device_id}"]
+            queue_obj.put(f"Executing: {' '.join(shlex.quote(arg) for arg in cmd2_list)}\n")
+            proc2 = subprocess.run(cmd2_list, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=False)
 
-            proc2 = subprocess.run(shlex.split(cmd2), capture_output=True, text=True, encoding='utf-8', errors='ignore')
-
-            for ext in ("*.rkey", "*.lic"):
-                if list(p.glob(ext)):
-                    success = True
-                    break
-
+            license_files = list(p.glob("*.lic")) + list(p.glob("*.rkey"))
+            if license_files:
+                success = True
+                queue_obj.put(f"Found license file: {license_files[0]}\n")
             final_proc = proc2
         else:
             final_proc = proc1
+
+        queue_obj.put(f"Final command output (stdout):\n{final_proc.stdout}\n")
+        queue_obj.put(f"Final command output (stderr):\n{final_proc.stderr}\n")
 
         if success:
             queue_obj.put("\n--- SUCCESS! ---\n")
             queue_obj.put(f"License key successfully created in: {output_folder}\n")
         else:
-            error_details = final_proc.stderr if final_proc.stderr else final_proc.stdout
-            raise RuntimeError(f"License generation failed. Details: {error_details.strip()}")
+            if final_proc.returncode != 0:
+                error_details = final_proc.stderr if final_proc.stderr else final_proc.stdout
+                raise RuntimeError(f"License generation command failed with exit code {final_proc.returncode}. Details: {error_details.strip()}")
+            else:
+                 raise RuntimeError(f"License generation command finished, but no .lic or .rkey file found in {output_folder}.")
 
     except Exception as e:
         queue_obj.put(f"\n--- AN ERROR OCCURRED ---\n")
+        queue_obj.put(traceback.format_exc() + "\n")
         queue_obj.put(f"{str(e)}\n")
     finally:
         queue_obj.put(("LICENSE_PROCESS_COMPLETE",))
 
 
+# --- Funzione Semplificata per Sistema con Python Installato (con DLL copiate in obfuscated) ---
 def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):
     """
-    Questa è la funzione principale che gestisce il processo di offuscamento.
-    Verrà eseguita in un thread separato.
+    Funzione semplificata che offusca gli script, crea launcher .bat,
+    e copia le DLL VCRuntime e Python Core in obfuscated, assumendo Python installato.
     """
+    pyarmor_runtime_folder_name = None
+    py_version_major_minor = ".".join(map(str, sys.version_info[:2])) # e.g., "3.10"
+    python_dll_name = f'python{py_version_major_minor.replace(".", "")}.dll' # e.g., python310.dll
     try:
         obfuscated_dir = os.path.join(dest_dir, "obfuscated")
 
-        queue_obj.put("--- Starting Obfuscation Process ---\n")
+        queue_obj.put(f"--- Starting Obfuscation Process (System Python Mode + DLL Copy {py_version_major_minor}) ---\n")
 
         # 1. Clean up and create directories
         if os.path.exists(dest_dir):
             queue_obj.put(f"Removing existing destination directory: {dest_dir}\n")
+            if not dest_dir or len(dest_dir) < 5 or ":" not in dest_dir:
+                 raise ValueError(f"Destination directory '{dest_dir}' seems unsafe to remove automatically.")
             shutil.rmtree(dest_dir)
         queue_obj.put(f"Creating destination directory: {dest_dir}\n")
         os.makedirs(obfuscated_dir)
@@ -315,7 +331,6 @@ def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):
         all_scripts = glob.glob(os.path.join(source_dir, '*.py'))
         if not all_scripts:
             raise FileNotFoundError("No Python files found in the source directory.")
-
         script_basenames = [os.path.basename(s) for s in all_scripts]
         queue_obj.put(f"Found {len(script_basenames)} scripts: {', '.join(script_basenames)}\n")
 
@@ -326,36 +341,119 @@ def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):
             "--outer",
             "--output", obfuscated_dir,
         ] + all_scripts
-
         process = subprocess.Popen(
-            command,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding='utf-8',
-            errors='ignore'
+            command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            text=True, encoding='utf-8', errors='ignore'
         )
+        pyarmor_output_lines = []
         for line in iter(process.stdout.readline, ''):
             queue_obj.put(line)
+            pyarmor_output_lines.append(line)
+            if "INFO     Copy PyArmor runtime files to" in line or "INFO     generate runtime files to" in line:
+                 try:
+                     path_part = line.split(" to ")[-1].strip()
+                     folder_name = os.path.basename(path_part)
+                     if folder_name.startswith("pyarmor_runtime_"):
+                         pyarmor_runtime_folder_name = folder_name
+                         queue_obj.put(f"Detected PyArmor runtime folder: {pyarmor_runtime_folder_name}\n")
+                 except Exception as parse_err:
+                     queue_obj.put(f"WARNING: Could not parse runtime folder name from line: '{line.strip()}'. Error: {parse_err}\n")
         process.stdout.close()
         return_code = process.wait()
+
+        if not pyarmor_runtime_folder_name:
+            runtime_folders = glob.glob(os.path.join(obfuscated_dir, "pyarmor_runtime_*"))
+            if runtime_folders:
+                 pyarmor_runtime_folder_name = os.path.basename(runtime_folders[0])
+                 queue_obj.put(f"Manually found PyArmor runtime folder: {pyarmor_runtime_folder_name}\n")
+            else:
+                 default_runtime = os.path.join(obfuscated_dir, "pyarmor_runtime_000000")
+                 if os.path.isdir(default_runtime):
+                     pyarmor_runtime_folder_name = os.path.basename(default_runtime)
+                     queue_obj.put(f"Assuming default PyArmor runtime folder: {pyarmor_runtime_folder_name}\n")
+                 else:
+                     queue_obj.put("ERROR: Could not determine PyArmor runtime folder name!\n")
+                     raise RuntimeError("PyArmor runtime folder not found after obfuscation.")
         if return_code != 0:
-            raise subprocess.CalledProcessError(return_code, command)
+            queue_obj.put(f"PyArmor process exited with code {return_code}. Check output above for errors.\n")
+            raise subprocess.CalledProcessError(return_code, command, output="See status area for PyArmor output")
         queue_obj.put("--- PyArmor Finished Successfully ---\n\n")
 
-        # 4. Create .bat launchers
+        # 3.5 Copia DLL VCRuntime e Python Core in obfuscated_dir
+        queue_obj.put(f"--- Copying Dependency DLLs ({python_dll_name}, vcruntime*) to obfuscated folder --- \n")
+        host_python_dir = sys.prefix # Directory dell'interprete Python che esegue questo script
+        dll_source_dirs = [host_python_dir]
+        system32_path = os.path.join(os.environ.get("WINDIR", "C:\\Windows"), "System32")
+        if system32_path not in dll_source_dirs:
+            dll_source_dirs.append(system32_path)
+
+        dlls_to_copy = [python_dll_name] + glob.glob(os.path.join(host_python_dir, "vcruntime140*.dll"))
+
+        found_python_dll = False
+        python_dll_src_path = None
+        vc_runtime_dll_paths = []
+
+        # Cerca le DLL nelle possibili directory sorgente
+        for source_dir_path in dll_source_dirs:
+            # Cerca pythonXX.dll
+            potential_py_dll = os.path.join(source_dir_path, python_dll_name)
+            if not found_python_dll and os.path.exists(potential_py_dll):
+                python_dll_src_path = potential_py_dll
+                found_python_dll = True
+                queue_obj.put(f"Found {python_dll_name} in: {source_dir_path}\n")
+
+            # Cerca vcruntime*.dll
+            vc_dlls_in_dir = glob.glob(os.path.join(source_dir_path, "vcruntime140*.dll"))
+            for vc_dll in vc_dlls_in_dir:
+                if vc_dll not in vc_runtime_dll_paths:
+                    vc_runtime_dll_paths.append(vc_dll)
+                    queue_obj.put(f"Found {os.path.basename(vc_dll)} in: {source_dir_path}\n")
+
+        # Copia le DLL trovate
+        dlls_to_copy_paths = []
+        if python_dll_src_path:
+            dlls_to_copy_paths.append(python_dll_src_path)
+        else:
+             queue_obj.put(f"WARNING: Could not find {python_dll_name} in {dll_source_dirs}. The obfuscated app might fail.\n")
+
+        dlls_to_copy_paths.extend(vc_runtime_dll_paths)
+
+        if not dlls_to_copy_paths:
+             queue_obj.put(f"WARNING: Could not find any required DLLs ({python_dll_name}, vcruntime*) to copy into obfuscated folder.\n")
+        else:
+            for dll_path in dlls_to_copy_paths:
+                dll_name = os.path.basename(dll_path)
+                dest_dll_path = os.path.join(obfuscated_dir, dll_name)
+                queue_obj.put(f"Copying {dll_name} to {obfuscated_dir}\n")
+                try:
+                    if not os.path.exists(dest_dll_path):
+                         shutil.copy(dll_path, obfuscated_dir)
+                    else:
+                         queue_obj.put(f"Skipping copy, {dll_name} already exists in {obfuscated_dir}.\n")
+                except Exception as copy_err:
+                     queue_obj.put(f"ERROR copying {dll_name} to {obfuscated_dir}: {copy_err}\n")
+
+        queue_obj.put("--- Finished copying Dependency DLLs to obfuscated folder --- \n")
+
+
+        # 4. Create .bat launchers (Simplified for System Python)
         queue_obj.put("--- Creating .bat Launchers ---\n")
         for script_path in all_scripts:
             script_name = os.path.basename(script_path)
-            bat_name = os.path.splitext(script_name)[0] + ".bat"
+            base_name = os.path.splitext(script_name)[0]
+            bat_name = base_name + ".bat"
             bat_path = os.path.join(dest_dir, bat_name)
 
-            relative_script_path = os.path.join("obfuscated", script_name)
-
+            # Simplified launcher content
             launcher_content = f'''@echo off
 setlocal
-cd /d %~dp0
-.\\python.exe ".\\{relative_script_path}"
+REM Cambia la directory corrente alla cartella 'obfuscated' relativa a questo .bat
+cd /d "%~dp0obfuscated"
+
+REM Esegui lo script usando il python del sistema (deve essere nel PATH)
+echo Running: python "{base_name}.py" %* from %CD%
+python "{base_name}.py" %*
+
 endlocal
 pause
 '''
@@ -364,59 +462,54 @@ pause
                 f.write(launcher_content)
         queue_obj.put("--- Launchers Created Successfully ---\n\n")
 
-        # 5. Copy non-Python assets
+        # 5. Copy non-Python assets (CORRECTED)
         queue_obj.put("--- Copying Assets ---\n")
-        for item in glob.glob(os.path.join(source_dir, '*')):
-            if not item.endswith('.py'):
-                dest_item = os.path.join(dest_dir, os.path.basename(item))
-                if os.path.isdir(item):
-                    queue_obj.put(f"Copying directory: {os.path.basename(item)}\n")
-                    shutil.copytree(item, dest_item)
-                else:
-                    queue_obj.put(f"Copying file: {os.path.basename(item)}\n")
-                    shutil.copy(item, dest_item)
+        ignore_func = shutil.ignore_patterns('*.py', '__pycache__')
+        patterns_to_ignore = ('*.py', '__pycache__') # Keep patterns for file check
 
-        # 6. Copy license file if provided
+        if os.path.exists(source_dir):
+            for item in os.listdir(source_dir):
+                 s = os.path.join(source_dir, item)
+                 d = os.path.join(dest_dir, item) # Assets go to the main dest_dir
+                 if os.path.isdir(s):
+                     should_ignore_dir = any(fnmatch.fnmatch(item, pat) for pat in patterns_to_ignore)
+                     if not should_ignore_dir:
+                         queue_obj.put(f"Copying directory: {item}\n")
+                         shutil.copytree(s, d, ignore=ignore_func, dirs_exist_ok=True)
+                 else: # It's a file
+                     should_ignore_file = any(fnmatch.fnmatch(item, pat) for pat in patterns_to_ignore)
+                     if not should_ignore_file:
+                         queue_obj.put(f"Copying file: {item}\n")
+                         shutil.copy2(s, d) # copy2 preserves metadata
+        else:
+             queue_obj.put(f"WARNING: Source directory {source_dir} not found for copying assets.\n")
+
+
+        # 6. Copy license file if provided (Keep this)
         if license_path:
             if os.path.exists(license_path):
                 queue_obj.put(f"Copying license file...\n")
                 shutil.copy(license_path, dest_dir)
+                shutil.copy(license_path, obfuscated_dir)
             else:
                 queue_obj.put(f"Warning: License file not found at '{license_path}'\n")
         queue_obj.put("--- Asset Copying Finished ---\n\n")
 
-        # 7. Create portable Python runtime
-        queue_obj.put("--- Creating Portable Python Runtime ---\n")
-        python_dir = os.path.dirname(sys.executable)
-        runtime_files = [
-            'python.exe', 'pythonw.exe', 'python3.dll',
-            f'python{sys.version_info.major}{sys.version_info.minor}.dll',
-            'vcruntime140.dll', 'vcruntime140_1.dll'
-        ]
-        for filename in runtime_files:
-            src_path = os.path.join(python_dir, filename)
-            if os.path.exists(src_path):
-                queue_obj.put(f"  - Copying {filename}...\n")
-                shutil.copy(src_path, dest_dir)
+        # 7. REMOVED - No portable Python setup needed
 
-        for folder in ['DLLs', 'Lib', 'tcl']:
-            src_path = os.path.join(python_dir, folder)
-            dest_path = os.path.join(dest_dir, folder)
-            if os.path.exists(src_path):
-                queue_obj.put(f"  - Copying '{folder}' subfolder...\n")
-                if os.path.exists(dest_path):
-                    shutil.rmtree(dest_path)
-                shutil.copytree(src_path, dest_path)
-        queue_obj.put("--- Portable Runtime Created Successfully ---\n\n")
-        queue_obj.put("====== OBFUSCATION COMPLETE ======\n")
+        queue_obj.put(f"====== OBFUSCATION COMPLETE (System Python Mode + DLL Copy {py_version_major_minor}) ======\n")
         queue_obj.put(f"Final application is ready in: {dest_dir}\n")
+        queue_obj.put(f"NOTE: Ensure Python {py_version_major_minor} is installed and in the system PATH on the target machine.\n")
 
     except Exception as e:
-        queue_obj.put(f"\n--- AN ERROR OCCURRED ---\n")
+        queue_obj.put(f"\n--- AN ERROR OCCURRED during obfuscation process ---\n")
+        queue_obj.put(traceback.format_exc() + "\n")
         queue_obj.put(f"{str(e)}\n")
     finally:
         queue_obj.put(("PROCESS_COMPLETE",))
 
+
+# --- Main execution ---
 if __name__ == "__main__":
     app = ObfuscatorApp()
     app.run()

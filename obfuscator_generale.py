@@ -356,6 +356,7 @@ def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):
             launcher_content = f'''@echo off
 setlocal
 cd /d %~dp0
+set PATH=%~dp0;%PATH%
 set PYTHONPATH=%~dp0obfuscated
 .\\python.exe ".\\{relative_script_path}"
 endlocal

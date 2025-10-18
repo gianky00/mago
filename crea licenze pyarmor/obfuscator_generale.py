@@ -48,34 +48,48 @@ class ObfuscatorApp(ctk.CTk):
         # Creazione dei frame per le schede
         self.notebook.add('Obfuscator')
         self.notebook.add('License Manager')
+        self.notebook.add("Gestione Utenze")
         self.notebook.add("Storico Licenze")
 
         self.obfuscator_tab = self.notebook.tab('Obfuscator')
         self.license_tab = self.notebook.tab('License Manager')
+        self.user_management_tab = self.notebook.tab("Gestione Utenze")
         self.license_history_tab = self.notebook.tab("Storico Licenze")
 
 
         self.create_obfuscator_tab()
         self.create_license_tab()
+        self.create_user_management_tab()
         self.create_license_history_tab()
-        self._refresh_user_dropdown()
+        self._refresh_all_user_views()
 
     def create_license_tab(self):
         # Variabili per la generazione licenza
         self.expiry_date = tk.StringVar()
         self.device_id = tk.StringVar()
+        self.selected_user_id_for_license = None
 
         input_frame = ctk.CTkFrame(self.license_tab, fg_color="transparent")
         input_frame.pack(fill='x', padx=20, pady=(20,10))
         input_frame.grid_columnconfigure(1, weight=1)
 
-        ctk.CTkLabel(input_frame, text="Expiry Date (YYYY-MM-DD):").grid(row=0, column=0, sticky='w', padx=5, pady=10)
-        self.expiry_entry = ctk.CTkEntry(input_frame, textvariable=self.expiry_date, width=250)
-        self.expiry_entry.grid(row=0, column=1, sticky='ew', padx=5, pady=10)
+        # User Selection Dropdown
+        ctk.CTkLabel(input_frame, text="Seleziona Utenza:").grid(row=0, column=0, sticky='w', padx=5, pady=10)
+        self.license_user_dropdown_var = ctk.StringVar(value="Nessun utente selezionato")
+        self.license_user_dropdown = ctk.CTkOptionMenu(input_frame, variable=self.license_user_dropdown_var, values=[], command=self._on_license_user_selected)
+        self.license_user_dropdown.grid(row=0, column=1, columnspan=2, sticky='ew', padx=5, pady=10)
 
-        ctk.CTkLabel(input_frame, text="Device ID:").grid(row=1, column=0, sticky='w', padx=5, pady=10)
-        self.device_id_entry = ctk.CTkEntry(input_frame, textvariable=self.device_id, width=250)
-        self.device_id_entry.grid(row=1, column=1, sticky='ew', padx=5, pady=10)
+        # Expiry Date
+        ctk.CTkLabel(input_frame, text="Data di Scadenza (YYYY-MM-DD):").grid(row=1, column=0, sticky='w', padx=5, pady=10)
+        self.expiry_entry = ctk.CTkEntry(input_frame, textvariable=self.expiry_date)
+        self.expiry_entry.grid(row=1, column=1, sticky='ew', padx=5, pady=10)
+        self.two_months_button = ctk.CTkButton(input_frame, text="Scadenza 2 Mesi", command=self._set_two_months_expiry, width=120)
+        self.two_months_button.grid(row=1, column=2, padx=(10, 5), pady=10)
+
+        # Hardware ID
+        ctk.CTkLabel(input_frame, text="Serial N. Disco rigido:").grid(row=2, column=0, sticky='w', padx=5, pady=10)
+        self.device_id_entry = ctk.CTkEntry(input_frame, textvariable=self.device_id, state="readonly")
+        self.device_id_entry.grid(row=2, column=1, columnspan=2, sticky='ew', padx=5, pady=10)
 
         self.generate_license_button = ctk.CTkButton(self.license_tab, text="Generate License Key", command=self.start_license_generation)
         self.generate_license_button.pack(pady=20, padx=20)
@@ -217,6 +231,10 @@ class ObfuscatorApp(ctk.CTk):
         expiry = self.expiry_date.get()
         device_id = self.device_id.get()
 
+        if not self.selected_user_id_for_license:
+            messagebox.showerror("Error", "Please select a user.")
+            return
+
         if not expiry or not device_id:
             messagebox.showerror("Error", "Please provide both an expiry date and a device ID.")
             return
@@ -230,7 +248,8 @@ class ObfuscatorApp(ctk.CTk):
         self.license_status_text.delete('1.0', tk.END)
         self.license_status_text.configure(state='disabled')
 
-        thread = threading.Thread(target=license_generation_process, args=(expiry, device_id, output_folder, self.license_queue))
+        # Pass the user ID to the generation process
+        thread = threading.Thread(target=self.license_generation_process, args=(expiry, device_id, output_folder, self.selected_user_id_for_license, self.license_queue))
         thread.daemon = True
         thread.start()
         self.process_license_queue()
@@ -277,15 +296,163 @@ class ObfuscatorApp(ctk.CTk):
         self.history_list_frame.grid_columnconfigure(0, weight=1)
         self._refresh_license_history()
 
-    def _refresh_user_dropdown(self):
+    def _refresh_all_user_views(self):
+        self._refresh_user_dropdowns()
+        self._refresh_user_list()
+        self._refresh_license_history()
+
+    def _refresh_user_dropdowns(self):
         self.user_data_map.clear()
         users = self.db.get_all_users()
-        user_names = ["All Users"]
+        user_names = ["Nessun utente selezionato"]
         if users:
             for user_id, name, hwid in users:
                 self.user_data_map[name] = (user_id, hwid)
                 user_names.append(name)
-        self.user_filter_menu.configure(values=user_names)
+
+        # Update dropdowns in both tabs
+        self.user_filter_menu.configure(values=["All Users"] + user_names[1:]) # History tab
+        self.license_user_dropdown.configure(values=user_names) # License tab
+        self.license_user_dropdown_var.set("Nessun utente selezionato")
+        self._clear_license_fields()
+
+    def _on_license_user_selected(self, selected_name):
+        if selected_name in self.user_data_map:
+            user_id, hwid = self.user_data_map[selected_name]
+            self.selected_user_id_for_license = user_id
+            self.device_id.set(hwid)
+        else:
+            self._clear_license_fields()
+
+    def _clear_license_fields(self):
+        self.selected_user_id_for_license = None
+        self.device_id.set("")
+        self.expiry_date.set("")
+
+    def _set_two_months_expiry(self):
+        from datetime import datetime, timedelta
+        from dateutil.relativedelta import relativedelta
+
+        future_date = datetime.now() + relativedelta(months=2)
+        self.expiry_date.set(future_date.strftime("%Y-%m-%d"))
+
+    def create_user_management_tab(self):
+        self.selected_user_for_edit = tk.StringVar()
+        self.user_management_tab.grid_columnconfigure(0, weight=1)
+        self.user_management_tab.grid_rowconfigure(0, weight=1)
+
+        button_frame = ctk.CTkFrame(self.user_management_tab)
+        button_frame.grid(row=1, column=0, padx=10, pady=10, sticky="ew")
+
+        ctk.CTkButton(button_frame, text="Aggiungi Utente", command=self._open_add_edit_user_popup).pack(side="left", padx=5)
+        ctk.CTkButton(button_frame, text="Modifica Utente Selezionato", command=lambda: self._open_add_edit_user_popup(edit_mode=True)).pack(side="left", padx=5)
+        ctk.CTkButton(button_frame, text="Elimina Utente Selezionato", command=self._delete_selected_user, fg_color="red").pack(side="left", padx=5)
+
+        self.user_list_frame = ctk.CTkScrollableFrame(self.user_management_tab, label_text="Utenti Registrati")
+        self.user_list_frame.grid(row=0, column=0, padx=10, pady=10, sticky="nsew")
+        self.user_list_frame.grid_columnconfigure(0, weight=1)
+
+        self.user_status_label = ctk.CTkLabel(self.user_management_tab, text="", anchor="w")
+        self.user_status_label.grid(row=2, column=0, padx=10, pady=5, sticky="w")
+
+        self._refresh_user_list()
+
+    def _refresh_user_list(self):
+        for widget in self.user_list_frame.winfo_children():
+            widget.destroy()
+
+        all_users = self.db.get_all_users()
+        header_frame = ctk.CTkFrame(self.user_list_frame, fg_color="transparent")
+        header_frame.pack(fill="x", pady=(0, 5))
+        header_frame.grid_columnconfigure(1, weight=1)
+        header_frame.grid_columnconfigure(2, weight=1)
+
+        ctk.CTkLabel(header_frame, text="Seleziona", font=ctk.CTkFont(weight="bold")).grid(row=0, column=0, padx=10)
+        ctk.CTkLabel(header_frame, text="Nome Utente", font=ctk.CTkFont(weight="bold")).grid(row=0, column=1, padx=5, sticky="w")
+        ctk.CTkLabel(header_frame, text="Serial N. Disco rigido", font=ctk.CTkFont(weight="bold")).grid(row=0, column=2, padx=5, sticky="w")
+
+        if not all_users:
+            ctk.CTkLabel(self.user_list_frame, text="Nessun utente registrato.").pack(pady=10)
+            return
+
+        for user_id, name, hwid in all_users:
+            user_frame = ctk.CTkFrame(self.user_list_frame)
+            user_frame.pack(fill="x", pady=2, padx=5)
+            user_frame.grid_columnconfigure(1, weight=1)
+            user_frame.grid_columnconfigure(2, weight=1)
+
+            radio_button = ctk.CTkRadioButton(user_frame, text="", variable=self.selected_user_for_edit, value=str(user_id))
+            radio_button.grid(row=0, column=0, padx=10)
+            ctk.CTkLabel(user_frame, text=name, anchor="w").grid(row=0, column=1, padx=5, sticky="ew")
+            ctk.CTkLabel(user_frame, text=hwid, anchor="w").grid(row=0, column=2, padx=5, sticky="ew")
+
+    def _open_add_edit_user_popup(self, edit_mode=False):
+        user_id_to_edit = self.selected_user_for_edit.get()
+        if edit_mode and not user_id_to_edit:
+            self.user_status_label.configure(text="Errore: Nessun utente selezionato per la modifica.", text_color="red")
+            return
+
+        popup = ctk.CTkToplevel(self)
+        popup.transient(self)
+        popup.grab_set()
+
+        if edit_mode:
+            popup.title("Modifica Utente")
+            user_data = next((u for u in self.db.get_all_users() if str(u[0]) == user_id_to_edit), None)
+            if not user_data:
+                self.user_status_label.configure(text="Errore: Utente non trovato.", text_color="red")
+                popup.destroy()
+                return
+        else:
+            popup.title("Aggiungi Nuovo Utente")
+            user_data = None
+
+        ctk.CTkLabel(popup, text="Nome Utente:").pack(pady=(10, 0))
+        name_entry = ctk.CTkEntry(popup, width=300)
+        name_entry.pack(pady=5, padx=10)
+        if user_data: name_entry.insert(0, user_data[1])
+
+        ctk.CTkLabel(popup, text="Serial N. Disco rigido:").pack()
+        hwid_entry = ctk.CTkEntry(popup, width=300)
+        hwid_entry.pack(pady=5, padx=10)
+        if user_data: hwid_entry.insert(0, user_data[2])
+
+        def save_action():
+            name = name_entry.get().strip()
+            hwid = hwid_entry.get().strip()
+            if not name or not hwid: return
+
+            if edit_mode:
+                success, msg = self.db.update_user(user_id_to_edit, name, hwid)
+            else:
+                success, msg = self.db.add_user(name, hwid)
+
+            if success:
+                self.user_status_label.configure(text=msg, text_color="green")
+                self._refresh_all_user_views()
+                popup.destroy()
+            else:
+                error_label = ctk.CTkLabel(popup, text=msg, text_color="red")
+                error_label.pack(pady=5)
+
+        ctk.CTkButton(popup, text="Salva", command=save_action).pack(pady=10)
+
+    def _delete_selected_user(self):
+        user_id_to_delete = self.selected_user_for_edit.get()
+        if not user_id_to_delete:
+            self.user_status_label.configure(text="Errore: Nessun utente selezionato.", text_color="red")
+            return
+
+        dialog = ctk.CTkInputDialog(text="Sei sicuro di voler eliminare questo utente?\nScrivi 'DELETE' per confermare.", title="Conferma Eliminazione")
+        confirmation = dialog.get_input()
+
+        if confirmation == "DELETE":
+            success, msg = self.db.delete_user(user_id_to_delete)
+            self.user_status_label.configure(text=msg, text_color="green" if success else "red")
+            self._refresh_all_user_views()
+            self.selected_user_for_edit.set("")
+        else:
+            self.user_status_label.configure(text="Eliminazione annullata.", text_color="orange")
 
     def _on_user_filter_selected(self, selected_name):
         self._refresh_license_history()
@@ -353,48 +520,53 @@ class ObfuscatorApp(ctk.CTk):
         else:
             self.history_status_label.configure(text="Deletion cancelled.", text_color="orange")
 
-def license_generation_process(expiry_date, device_id, output_folder, queue_obj):
-    try:
-        queue_obj.put("--- Starting License Generation ---\n")
-        if not re.match(r"^\d{4}-\d{2}-\d{2}$", expiry_date):
-            raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
-        queue_obj.put(f"Expiry: {expiry_date}, Device ID: {device_id}\n")
+    def license_generation_process(self, expiry_date, device_id, output_folder, user_id, queue_obj):
+        try:
+            queue_obj.put("--- Starting License Generation ---\n")
+            if not re.match(r"^\d{4}-\d{2}-\d{2}$", expiry_date):
+                raise ValueError("Invalid date format. Please use YYYY-MM-DD.")
+            queue_obj.put(f"Expiry: {expiry_date}, Device ID: {device_id}\n")
 
-        cmd1_list = ["pyarmor", "gen", "key", "-O", output_folder, "-e", expiry_date, "-b", device_id]
-        queue_obj.put(f"Executing: {' '.join(shlex.quote(arg) for arg in cmd1_list)}\n")
-        proc1 = subprocess.run(cmd1_list, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=False)
+            cmd1_list = ["pyarmor", "gen", "key", "-O", output_folder, "-e", expiry_date, "-b", device_id]
+            queue_obj.put(f"Executing: {' '.join(shlex.quote(arg) for arg in cmd1_list)}\n")
+            proc1 = subprocess.run(cmd1_list, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=False)
 
-        success = False
-        p = pathlib.Path(output_folder)
-        if list(p.glob("*.lic")) or list(p.glob("*.rkey")):
-            success = True
-
-        if not success:
-            queue_obj.put(f"STDOUT:\n{proc1.stdout}\nSTDERR:\n{proc1.stderr}\n")
-            queue_obj.put("First attempt failed. Retrying with 'disk:' prefix...\n")
-            time.sleep(1)
-            cmd2_list = ["pyarmor", "gen", "key", "-O", output_folder, "-e", expiry_date, "-b", f"disk:{device_id}"]
-            queue_obj.put(f"Executing: {' '.join(shlex.quote(arg) for arg in cmd2_list)}\n")
-            proc2 = subprocess.run(cmd2_list, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=False)
+            success = False
+            p = pathlib.Path(output_folder)
             if list(p.glob("*.lic")) or list(p.glob("*.rkey")):
                 success = True
-            final_proc = proc2
-        else:
-            final_proc = proc1
 
-        queue_obj.put(f"Final STDOUT:\n{final_proc.stdout}\n")
-        queue_obj.put(f"Final STDERR:\n{final_proc.stderr}\n")
+            if not success:
+                queue_obj.put(f"STDOUT:\n{proc1.stdout}\nSTDERR:\n{proc1.stderr}\n")
+                queue_obj.put("First attempt failed. Retrying with 'disk:' prefix...\n")
+                time.sleep(1)
+                cmd2_list = ["pyarmor", "gen", "key", "-O", output_folder, "-e", expiry_date, "-b", f"disk:{device_id}"]
+                queue_obj.put(f"Executing: {' '.join(shlex.quote(arg) for arg in cmd2_list)}\n")
+                proc2 = subprocess.run(cmd2_list, capture_output=True, text=True, encoding='utf-8', errors='ignore', check=False)
+                if list(p.glob("*.lic")) or list(p.glob("*.rkey")):
+                    success = True
+                final_proc = proc2
+            else:
+                final_proc = proc1
 
-        if success:
-            queue_obj.put("\n--- SUCCESS! ---\nLicense key created in: {output_folder}\n")
-        else:
-            error_details = final_proc.stderr if final_proc.stderr else final_proc.stdout
-            raise RuntimeError(f"License generation failed. Details: {error_details.strip()}")
+            queue_obj.put(f"Final STDOUT:\n{final_proc.stdout}\n")
+            queue_obj.put(f"Final STDERR:\n{final_proc.stderr}\n")
 
-    except Exception as e:
-        queue_obj.put(f"\n--- AN ERROR OCCURRED ---\n{traceback.format_exc()}\n{str(e)}\n")
-    finally:
-        queue_obj.put(("LICENSE_PROCESS_COMPLETE",))
+            if success:
+                # Add record to database
+                db_success, db_msg = self.db.add_license_record(user_id, expiry_date)
+                if db_success:
+                    queue_obj.put("\n--- SUCCESS! ---\nLicense key created and recorded in history.\n")
+                else:
+                    queue_obj.put(f"\n--- WARNING ---\nLicense key created, but failed to record in history: {db_msg}\n")
+            else:
+                error_details = final_proc.stderr if final_proc.stderr else final_proc.stdout
+                raise RuntimeError(f"License generation failed. Details: {error_details.strip()}")
+
+        except Exception as e:
+            queue_obj.put(f"\n--- AN ERROR OCCURRED ---\n{traceback.format_exc()}\n{str(e)}\n")
+        finally:
+            queue_obj.put(("LICENSE_PROCESS_COMPLETE",))
 
 
 def obfuscation_process(source_dir, dest_dir, license_path, queue_obj):

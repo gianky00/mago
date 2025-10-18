@@ -13,9 +13,19 @@ class ObfuscatorGUI(tk.Tk):
         super().__init__()
         self.title("Application Obfuscator")
         self.geometry("600x450")
+        self.source_path = tk.StringVar()
         self.destination_path = tk.StringVar()
         self.license_path = tk.StringVar()
         self.queue = queue.Queue()
+
+        # Frame for source path selection
+        source_path_frame = tk.Frame(self, pady=5)
+        source_path_frame.pack(fill='x', padx=10, pady=(10,0))
+        tk.Label(source_path_frame, text="Source Folder:").pack(side='left')
+        self.source_path_entry = tk.Entry(source_path_frame, textvariable=self.source_path, state='readonly', width=50)
+        self.source_path_entry.pack(side='left', expand=True, fill='x', padx=5)
+        self.browse_source_button = tk.Button(source_path_frame, text="Browse...", command=self.select_source)
+        self.browse_source_button.pack(side='left')
 
         # Frame for destination path selection
         dest_path_frame = tk.Frame(self, pady=5)
@@ -52,31 +62,38 @@ class ObfuscatorGUI(tk.Tk):
         self.status_text.see(tk.END)
         self.status_text.config(state='disabled')
 
+    def select_source(self):
+        path = filedialog.askdirectory(title="Select Source Folder")
+        if path:
+            self.source_path.set(path)
+            if self.destination_path.get():
+                self.start_button.config(state='normal')
+            self._update_status(f"Source set to: {path}\n")
+
     def select_destination(self):
         path = filedialog.askdirectory(title="Select Destination Folder")
         if path:
             self.destination_path.set(path)
-            if self.license_path.get():
+            if self.source_path.get():
                 self.start_button.config(state='normal')
             self._update_status(f"Destination set to: {path}\n")
 
     def select_license_file(self):
         path = filedialog.askopenfilename(
-            title="Select license.lic file",
-            filetypes=[("License files", "*.lic"), ("All files", "*.*")]
+            title="Select License File",
+            filetypes=[("License Files", "*.lic *.rkey"), ("All files", "*.*")]
         )
         if path:
             self.license_path.set(path)
-            if self.destination_path.get():
-                self.start_button.config(state='normal')
             self._update_status(f"License file set to: {path}\n")
 
     def start_obfuscation(self):
-        if not self.destination_path.get() or not self.license_path.get():
-            messagebox.showerror("Error", "Please select both a destination folder and a license file.")
+        if not self.source_path.get() or not self.destination_path.get():
+            messagebox.showerror("Error", "Please select both a source and destination folder.")
             return
 
         self.start_button.config(state='disabled')
+        self.browse_source_button.config(state='disabled')
         self.browse_dest_button.config(state='disabled')
         self.browse_license_button.config(state='disabled')
         self.status_text.config(state='normal')
@@ -94,6 +111,7 @@ class ObfuscatorGUI(tk.Tk):
                 message = self.queue.get_nowait()
                 if isinstance(message, tuple) and message[0] == "PROCESS_COMPLETE":
                     self.start_button.config(state='normal')
+                    self.browse_source_button.config(state='normal')
                     self.browse_dest_button.config(state='normal')
                     self.browse_license_button.config(state='normal')
                     build_dir = "build"
@@ -111,7 +129,7 @@ class ObfuscatorGUI(tk.Tk):
             dest_dir = self.destination_path.get()
             license_src_path = self.license_path.get()
             main_script = "gui.py"
-            source_dir = os.path.dirname(os.path.abspath(__file__))
+            source_dir = self.source_path.get()
 
             self.queue.put("Starting build process...\n")
 
@@ -152,7 +170,8 @@ class ObfuscatorGUI(tk.Tk):
                 "pyarmor", "gen",
                 "--outer",
                 "--output", os.path.abspath(dest_dir),
-            ] + all_scripts
+            ]
+            command.extend(all_scripts)
             
             process = subprocess.Popen(
                 command, 
@@ -220,9 +239,10 @@ class ObfuscatorGUI(tk.Tk):
                 self.queue.put("Assets copied.\n")
 
                 # 7. Copy license file
-                self.queue.put(f"Copying license file to {dest_dir}...\n")
-                shutil.copy(license_src_path, os.path.join(dest_dir, 'license.lic'))
-                self.queue.put("License file copied.\n")
+                if license_src_path:
+                    self.queue.put(f"Copying license file to {dest_dir}...\n")
+                    shutil.copy(license_src_path, os.path.join(dest_dir, 'license.lic'))
+                    self.queue.put("License file copied.\n")
 
                 # 8. Create avvio.bat launcher
                 self.queue.put("Creating launcher script (avvio.bat)...\n")
@@ -232,7 +252,7 @@ setlocal
 REM Change directory to the script's location
 cd /d %~dp0
 REM Run the application using the LOCAL python.exe
-.\\python.exe {main_script}
+.\\python.exe "{main_script}"
 endlocal
 pause
 '''

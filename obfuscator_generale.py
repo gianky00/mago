@@ -358,6 +358,9 @@ setlocal
 REM Navigate into the obfuscated directory first. This is crucial for DLL loading.
 cd /d "%~dp0obfuscated"
 
+REM Add the current directory to PYTHONPATH to ensure embeddable Python finds the modules.
+set PYTHONPATH=.
+
 REM Execute the script from within its own directory, using the python.exe from the parent folder.
 ..\\python.exe "{script_name}"
 endlocal
